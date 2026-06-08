@@ -1,0 +1,96 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: cortex_backend
+    working_dir: /app
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    environment:
+      PYTHONPATH: /app
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: >
+      sh -c "
+        echo 'DB is healthy!' &&
+        alembic upgrade head &&
+        python scripts/seed_dev_data.py &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      "
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: cortex_frontend
+    working_dir: /app
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev -- --host 0.0.0.0
+
+  db:
+    image: postgres:15
+    container_name: cortex_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: cortex_icu
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cortex_icu"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  seed:
+    build:
+      context: ./backend
+    container_name: cortex_seed
+    working_dir: /app
+    env_file:
+      - ./backend/.env
+    environment:
+      PYTHONPATH: /app
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: python scripts/seed_dev_data.py
+    profiles:
+      - seed
+
+  vital_simulator:
+    build:
+      context: ./backend
+    container_name: cortex_vital_simulator
+    working_dir: /app
+    environment:
+      PYTHONPATH: /app
+    depends_on:
+      - backend
+    volumes:
+      - ./backend:/app
+    command: >
+      sh -c "
+        sleep 10 &&
+        python scripts/simulate_live_vitals.py --api-base-url http://backend:8000 --beds B1 B2 --interval 2
+      "
+    profiles:
+      - simulator
+
+volumes:
+  postgres_data:

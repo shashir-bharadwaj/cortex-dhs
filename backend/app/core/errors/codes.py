@@ -1,0 +1,31 @@
+"""
+Central registry of stable machine-readable error codes.
+
+These codes should be treated as API contract values and can be safely used
+by the frontend for conditional rendering, retries, banners, or form mapping.
+"""
+
+
+class ErrorCodes:
+    """
+    Known top-level application error codes.
+    """
+
+    INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR"
+    REQUEST_VALIDATION_ERROR = "REQUEST_VALIDATION_ERROR"
+    VALIDATION_ERROR = "VALIDATION_ERROR"
+    RESOURCE_NOT_FOUND = "RESOURCE_NOT_FOUND"
+    CONFLICT_ERROR = "CONFLICT_ERROR"
+    BUSINESS_RULE_VIOLATION = "BUSINESS_RULE_VIOLATION"
+    UNAUTHORIZED = "UNAUTHORIZED"
+    FORBIDDEN = "FORBIDDEN"
+    
+    DEVICE_NOT_FOUND = "DEVICE_NOT_FOUND"
+    PATIENT_NOT_FOUND = "PATIENT_NOT_FOUND"
+    DEVICE_ALREADY_ASSIGNED = "DEVICE_ALREADY_ASSIGNED"
+    DEVICE_ASSIGNMENT_NOT_ALLOWED = "DEVICE_ASSIGNMENT_NOT_ALLOWED"
+
+    HOSPITAL_NOT_FOUND = "HOSPITAL_NOT_FOUND"
+    ICU_NOT_FOUND = "ICU_NOT_FOUND"
+    BED_NOT_FOUND = "BED_NOT_FOUND"
+    BED_ALREADY_EXISTS_IN_ICU = "BED_ALREADY_EXISTS_IN_ICU"
