@@ -40,14 +40,12 @@ class SQLAlchemyLatestVitalRepository(LatestVitalRepository):
         if existing_model:
             existing_model.bed_id = latest_vital.bed_id
             existing_model.device_id = latest_vital.device_id
-
             existing_model.hr = latest_vital.hr
             existing_model.bp_sys = latest_vital.bp_sys
             existing_model.bp_dia = latest_vital.bp_dia
             existing_model.spo2 = latest_vital.spo2
             existing_model.temp = latest_vital.temp
             existing_model.rr = latest_vital.rr
-
             existing_model.status = latest_vital.status
             existing_model.recorded_at = latest_vital.recorded_at
             existing_model.updated_at = datetime.utcnow()
@@ -102,9 +100,9 @@ class SQLAlchemyLatestVitalRepository(LatestVitalRepository):
         latest_vitals: dict[int, LatestVital] = {}
 
         for model in latest_vital_models:
-            latest_vitals[model.patient_id] = (
-                LatestVitalMapper.to_domain(model)
-        )
+            latest_vitals[model.patient_id] = LatestVitalMapper.to_domain(
+                model
+            )
 
         return latest_vitals
 

@@ -129,6 +129,93 @@ def upgrade() -> None:
     )
 
     # -------------------------------------------------------------------------
+    # Admin Master Tables
+    # -------------------------------------------------------------------------
+
+    op.create_table(
+        "icu_unit_masters",
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("icu_name", sa.String(), nullable=False),
+        sa.Column("type", sa.String(), nullable=False),
+        sa.Column("department", sa.String(), nullable=False),
+        sa.Column("beds", sa.Integer(), nullable=False),
+        sa.Column("devices", sa.String(), nullable=True),
+        sa.Column("gateway", sa.String(), nullable=True),
+        sa.Column("status", sa.String(), nullable=False),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(
+        op.f("ix_icu_unit_masters_id"),
+        "icu_unit_masters",
+        ["id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_icu_unit_masters_icu_name"),
+        "icu_unit_masters",
+        ["icu_name"],
+        unique=True,
+    )
+
+    op.create_table(
+        "bed_masters",
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("bed_id", sa.String(), nullable=False),
+        sa.Column("icu_unit_id", sa.Integer(), nullable=False),
+        sa.Column("bed_type", sa.String(), nullable=False),
+        sa.Column("department", sa.String(), nullable=False),
+        sa.Column("ward", sa.String(), nullable=False),
+        sa.Column("floor", sa.String(), nullable=False),
+        sa.Column("room", sa.String(), nullable=False),
+        sa.Column("cleaning_status", sa.String(), nullable=False),
+        sa.Column("maintenance_status", sa.String(), nullable=False),
+        sa.Column("operational_status", sa.String(), nullable=False),
+        sa.Column("last_sanitized", sa.DateTime(), nullable=True),
+        sa.ForeignKeyConstraint(["icu_unit_id"], ["icu_unit_masters.id"]),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(op.f("ix_bed_masters_id"), "bed_masters", ["id"], unique=False)
+    op.create_index(
+        op.f("ix_bed_masters_bed_id"),
+        "bed_masters",
+        ["bed_id"],
+        unique=True,
+    )
+    op.create_index(
+        op.f("ix_bed_masters_icu_unit_id"),
+        "bed_masters",
+        ["icu_unit_id"],
+        unique=False,
+    )
+
+    op.create_table(
+        "device_masters",
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("device_type", sa.String(), nullable=False),
+        sa.Column("manufacturer", sa.String(), nullable=False),
+        sa.Column("model", sa.String(), nullable=False),
+        sa.Column("serial", sa.String(), nullable=False),
+        sa.Column("bed_id", sa.Integer(), nullable=True),
+        sa.Column("ip_address", sa.String(), nullable=False),
+        sa.Column("status", sa.String(), nullable=False),
+        sa.ForeignKeyConstraint(["bed_id"], ["bed_masters.id"]),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(op.f("ix_device_masters_id"), "device_masters", ["id"], unique=False)
+    op.create_index(
+        op.f("ix_device_masters_serial"),
+        "device_masters",
+        ["serial"],
+        unique=True,
+    )
+    op.create_index(
+        op.f("ix_device_masters_bed_id"),
+        "device_masters",
+        ["bed_id"],
+        unique=False,
+    )
+
+    # -------------------------------------------------------------------------
     # Patient Tables
     # -------------------------------------------------------------------------
 
@@ -137,7 +224,11 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("name", sa.String(), nullable=False),
         sa.Column("age", sa.Integer(), nullable=True),
-        sa.Column("gender", sa.Enum("MALE", "FEMALE", "OTHER", name="gender"), nullable=False),
+        sa.Column(
+            "gender",
+            sa.Enum("MALE", "FEMALE", "OTHER", name="gender"),
+            nullable=False,
+        ),
         sa.Column("bed_id", sa.Integer(), nullable=True),
         sa.Column("diagnosis", sa.String(), nullable=True),
         sa.Column("weight", sa.Float(), nullable=True),
@@ -145,17 +236,25 @@ def upgrade() -> None:
         sa.Column("blood_group", sa.String(), nullable=True),
         sa.Column("doctor", sa.String(), nullable=True),
         sa.Column("admission_time", sa.DateTime(), nullable=False),
-        sa.Column("icu_unit", sa.String(), nullable=True),
-        sa.Column("hospital_id", sa.String(), nullable=True),
+        sa.Column("hospital_id", sa.Integer(), nullable=False),
         sa.Column("status", sa.String(), nullable=False),
         sa.Column("history", sa.JSON(), nullable=True),
         sa.Column("comorbidities", sa.JSON(), nullable=True),
+        sa.ForeignKeyConstraint(["bed_id"], ["bed_masters.id"]),
+        sa.ForeignKeyConstraint(["hospital_id"], ["hospitals.id"]),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_patients_id"), "patients", ["id"], unique=False)
+    op.create_index(op.f("ix_patients_bed_id"), "patients", ["bed_id"], unique=False)
+    op.create_index(
+        op.f("ix_patients_hospital_id"),
+        "patients",
+        ["hospital_id"],
+        unique=False,
+    )
 
     # -------------------------------------------------------------------------
-    # Role Tables
+    # Role / Permission Tables
     # -------------------------------------------------------------------------
 
     op.create_table(
@@ -168,10 +267,6 @@ def upgrade() -> None:
     )
     op.create_index(op.f("ix_roles_id"), "roles", ["id"], unique=False)
 
-    # -------------------------------------------------------------------------
-    # Permission Tables
-    # -------------------------------------------------------------------------
-
     op.create_table(
         "permissions",
         sa.Column("id", sa.Integer(), nullable=False),
@@ -179,53 +274,35 @@ def upgrade() -> None:
         sa.Column("action", sa.String(), nullable=False),
         sa.Column("description", sa.String(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint(
-            "module",
-            "action",
-            name="uq_permission_module_action",
-        ),
+        sa.UniqueConstraint("module", "action", name="uq_permission_module_action"),
     )
-    
-    op.create_index(
-        op.f("ix_permissions_id"),
-        "permissions",
-        ["id"],
-        unique=False,
-    )
-    
+    op.create_index(op.f("ix_permissions_id"), "permissions", ["id"], unique=False)
+
     op.create_table(
         "role_permissions",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("role_id", sa.Integer(), nullable=False),
         sa.Column("permission_id", sa.Integer(), nullable=False),
-        sa.ForeignKeyConstraint(
-            ["role_id"],
-            ["roles.id"],
-            ondelete="CASCADE",
-        ),
+        sa.ForeignKeyConstraint(["role_id"], ["roles.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(
             ["permission_id"],
             ["permissions.id"],
             ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint(
-            "role_id",
-            "permission_id",
-            name="uq_role_permission",
-        ),
+        sa.UniqueConstraint("role_id", "permission_id", name="uq_role_permission"),
     )
-    
     op.create_index(
         op.f("ix_role_permissions_id"),
         "role_permissions",
         ["id"],
         unique=False,
     )
+
     # -------------------------------------------------------------------------
     # Users Tables
     # -------------------------------------------------------------------------
-    
+
     op.create_table(
         "users",
         sa.Column("id", sa.Integer(), nullable=False),
@@ -235,6 +312,8 @@ def upgrade() -> None:
         sa.Column("email", sa.String(), nullable=False),
         sa.Column("password_hash", sa.String(), nullable=False),
         sa.Column("role_id", sa.Integer(), nullable=False),
+        # These remain String because UserModel currently defines them as String.
+        # Convert these later only after refactoring UserModel/auth claims together.
         sa.Column("hospital_id", sa.String(), nullable=False),
         sa.Column("unit_id", sa.String(), nullable=False),
         sa.Column("shift", sa.String(), nullable=False),
@@ -244,19 +323,95 @@ def upgrade() -> None:
     )
     op.create_index(op.f("ix_users_id"), "users", ["id"], unique=False)
     op.create_index(op.f("ix_users_role_id"), "users", ["role_id"], unique=False)
-    
-    op.create_index(
-        op.f("ix_users_user_id"),
-        "users",
-        ["user_id"],
-        unique=True,
+    op.create_index(op.f("ix_users_user_id"), "users", ["user_id"], unique=True)
+    op.create_index(op.f("ix_users_email"), "users", ["email"], unique=True)
+
+
+
+
+        # -------------------------------------------------------------------------
+    # Patient Staff Assignment Tables
+    # -------------------------------------------------------------------------
+
+    op.create_table(
+        "patient_staff_assignments",
+        sa.Column("id", sa.Integer(), nullable=False),
+
+        sa.Column(
+            "patient_id",
+            sa.Integer(),
+            nullable=False,
+        ),
+
+        sa.Column(
+            "user_id",
+            sa.Integer(),
+            nullable=False,
+        ),
+
+        sa.Column(
+            "assignment_type",
+            sa.String(),
+            nullable=False,
+        ),
+
+        sa.Column(
+            "assigned_at",
+            sa.DateTime(),
+            nullable=False,
+        ),
+
+        sa.Column(
+            "ended_at",
+            sa.DateTime(),
+            nullable=True,
+        ),
+
+        sa.Column(
+            "is_active",
+            sa.Boolean(),
+            nullable=False,
+        ),
+
+        sa.ForeignKeyConstraint(
+            ["patient_id"],
+            ["patients.id"],
+        ),
+
+        sa.ForeignKeyConstraint(
+            ["user_id"],
+            ["users.id"],
+        ),
+
+        sa.PrimaryKeyConstraint("id"),
     )
-    
+
     op.create_index(
-        op.f("ix_users_email"),
-        "users",
-        ["email"],
-        unique=True,
+        op.f("ix_patient_staff_assignments_id"),
+        "patient_staff_assignments",
+        ["id"],
+        unique=False,
+    )
+
+    op.create_index(
+        op.f("ix_patient_staff_assignments_patient_id"),
+        "patient_staff_assignments",
+        ["patient_id"],
+        unique=False,
+    )
+
+    op.create_index(
+        op.f("ix_patient_staff_assignments_user_id"),
+        "patient_staff_assignments",
+        ["user_id"],
+        unique=False,
+    )
+
+    op.create_index(
+        op.f("ix_patient_staff_assignments_is_active"),
+        "patient_staff_assignments",
+        ["is_active"],
+        unique=False,
     )
 
     # -------------------------------------------------------------------------
@@ -278,6 +433,18 @@ def upgrade() -> None:
         op.f("ix_patient_devices_id"),
         "patient_devices",
         ["id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_patient_devices_patient_id"),
+        "patient_devices",
+        ["patient_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_patient_devices_device_id"),
+        "patient_devices",
+        ["device_id"],
         unique=False,
     )
 
@@ -305,12 +472,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["patient_id"], ["patients.id"]),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(
-        op.f("ix_timeline_events_id"),
-        "timeline_events",
-        ["id"],
-        unique=False,
-    )
+    op.create_index(op.f("ix_timeline_events_id"), "timeline_events", ["id"], unique=False)
     op.create_index(
         op.f("ix_timeline_events_patient_id"),
         "timeline_events",
@@ -337,12 +499,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_vitals_id"), "vitals", ["id"], unique=False)
-    op.create_index(
-        op.f("ix_vitals_patient_id"),
-        "vitals",
-        ["patient_id"],
-        unique=False,
-    )
+    op.create_index(op.f("ix_vitals_patient_id"), "vitals", ["patient_id"], unique=False)
 
     # -------------------------------------------------------------------------
     # Alarm Tables
@@ -373,112 +530,6 @@ def upgrade() -> None:
     op.create_index(op.f("ix_alarms_severity"), "alarms", ["severity"], unique=False)
 
     # -------------------------------------------------------------------------
-    # Admin Master Tables
-    # -------------------------------------------------------------------------
-
-    # ICU unit masters
-    op.create_table(
-        "icu_unit_masters",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("icu_name", sa.String(), nullable=False),
-        sa.Column("type", sa.String(), nullable=False),
-        sa.Column("department", sa.String(), nullable=False),
-        sa.Column("beds", sa.Integer(), nullable=False),
-        sa.Column("devices", sa.String(), nullable=True),
-        sa.Column("gateway", sa.String(), nullable=True),
-        sa.Column("status", sa.String(), nullable=False),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_index(
-        op.f("ix_icu_unit_masters_id"),
-        "icu_unit_masters",
-        ["id"],
-        unique=False,
-    )
-    op.create_index(
-        op.f("ix_icu_unit_masters_icu_name"),
-        "icu_unit_masters",
-        ["icu_name"],
-        unique=True,
-    )
-
-    # Bed masters
-    op.create_table(
-        "bed_masters",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("bed_id", sa.String(), nullable=False),
-        sa.Column("icu_unit_id", sa.Integer(), nullable=False),
-        sa.Column("bed_type", sa.String(), nullable=False),
-        sa.Column("department", sa.String(), nullable=False),
-        sa.Column("ward", sa.String(), nullable=False),
-        sa.Column("floor", sa.String(), nullable=False),
-        sa.Column("room", sa.String(), nullable=False),
-        sa.Column("cleaning_status", sa.String(), nullable=False),
-        sa.Column("maintenance_status", sa.String(), nullable=False),
-        sa.Column("operational_status", sa.String(), nullable=False),
-        sa.Column("last_sanitized", sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["icu_unit_id"],
-            ["icu_unit_masters.id"],
-        ),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_index(
-        op.f("ix_bed_masters_id"),
-        "bed_masters",
-        ["id"],
-        unique=False,
-    )
-    op.create_index(
-        op.f("ix_bed_masters_bed_id"),
-        "bed_masters",
-        ["bed_id"],
-        unique=True,
-    ),
-    op.create_index(
-        op.f("ix_bed_masters_icu_unit_id"),
-        "bed_masters",
-        ["icu_unit_id"],
-        unique=False,
-    )
-
-    # Device masters
-    op.create_table(
-        "device_masters",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("device_type", sa.String(), nullable=False),
-        sa.Column("manufacturer", sa.String(), nullable=False),
-        sa.Column("model", sa.String(), nullable=False),
-        sa.Column("serial", sa.String(), nullable=False),
-        sa.Column("bed_id", sa.Integer(), nullable=True),
-        sa.Column("ip_address", sa.String(), nullable=False),
-        sa.Column("status", sa.String(), nullable=False),
-        sa.ForeignKeyConstraint(
-            ["bed_id"],
-            ["bed_masters.id"],
-        ),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_index(
-        op.f("ix_device_masters_id"),
-        "device_masters",
-        ["id"],
-        unique=False,
-    )
-    op.create_index(
-        op.f("ix_device_masters_serial"),
-        "device_masters",
-        ["serial"],
-        unique=True,
-    ),
-    op.create_index(
-        op.f("ix_device_masters_bed_id"),
-        "device_masters",
-        ["bed_id"],
-        unique=False,
-    )
-
-    # -------------------------------------------------------------------------
     # Latest Patient Vitals Table
     # -------------------------------------------------------------------------
 
@@ -501,12 +552,8 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["bed_id"], ["bed_masters.id"]),
         sa.ForeignKeyConstraint(["device_id"], ["device_masters.id"]),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint(
-            "patient_id",
-            name="uq_latest_patient_vitals_patient_id",
-        ),
+        sa.UniqueConstraint("patient_id", name="uq_latest_patient_vitals_patient_id"),
     )
-
     op.create_index(
         op.f("ix_latest_patient_vitals_id"),
         "latest_patient_vitals",
@@ -532,54 +579,17 @@ def upgrade() -> None:
         unique=False,
     )
 
-def downgrade() -> None:
 
+def downgrade() -> None:
     # -------------------------------------------------------------------------
     # Latest Patient Vitals Table
     # -------------------------------------------------------------------------
 
-    op.drop_index(
-        op.f("ix_latest_patient_vitals_device_id"),
-        table_name="latest_patient_vitals",
-    )
-    op.drop_index(
-        op.f("ix_latest_patient_vitals_bed_id"),
-        table_name="latest_patient_vitals",
-    )
-    op.drop_index(
-        op.f("ix_latest_patient_vitals_patient_id"),
-        table_name="latest_patient_vitals",
-    )
-    op.drop_index(
-        op.f("ix_latest_patient_vitals_id"),
-        table_name="latest_patient_vitals",
-    )
+    op.drop_index(op.f("ix_latest_patient_vitals_device_id"), table_name="latest_patient_vitals")
+    op.drop_index(op.f("ix_latest_patient_vitals_bed_id"), table_name="latest_patient_vitals")
+    op.drop_index(op.f("ix_latest_patient_vitals_patient_id"), table_name="latest_patient_vitals")
+    op.drop_index(op.f("ix_latest_patient_vitals_id"), table_name="latest_patient_vitals")
     op.drop_table("latest_patient_vitals")
-
-    # -------------------------------------------------------------------------
-    # Admin Master Tables
-    # -------------------------------------------------------------------------
-    
-    # Device masters
-    op.drop_index(op.f("ix_device_masters_serial"), table_name="device_masters")
-    op.drop_index(op.f("ix_device_masters_id"), table_name="device_masters")
-    op.drop_index(op.f("ix_device_masters_bed_id"),
-    table_name="device_masters",
-)
-    op.drop_table("device_masters")
-
-    # Bed masters
-    op.drop_index(op.f("ix_bed_masters_bed_id"), table_name="bed_masters")
-    op.drop_index(op.f("ix_bed_masters_id"), table_name="bed_masters")
-    op.drop_index(op.f("ix_bed_masters_icu_unit_id"),
-    table_name="bed_masters",
-)
-    op.drop_table("bed_masters")
-
-    # ICU unit masters
-    op.drop_index(op.f("ix_icu_unit_masters_icu_name"), table_name="icu_unit_masters")
-    op.drop_index(op.f("ix_icu_unit_masters_id"), table_name="icu_unit_masters")
-    op.drop_table("icu_unit_masters")
 
     # -------------------------------------------------------------------------
     # Alarm Tables
@@ -607,9 +617,37 @@ def downgrade() -> None:
     op.drop_table("timeline_events")
 
     # -------------------------------------------------------------------------
+    # Patient Staff Assignment Tables
+    # -------------------------------------------------------------------------
+
+    op.drop_index(
+        op.f("ix_patient_staff_assignments_is_active"),
+        table_name="patient_staff_assignments",
+    )
+
+    op.drop_index(
+        op.f("ix_patient_staff_assignments_user_id"),
+        table_name="patient_staff_assignments",
+    )
+
+    op.drop_index(
+        op.f("ix_patient_staff_assignments_patient_id"),
+        table_name="patient_staff_assignments",
+    )
+
+    op.drop_index(
+        op.f("ix_patient_staff_assignments_id"),
+        table_name="patient_staff_assignments",
+    )
+
+    op.drop_table("patient_staff_assignments")
+
+    # -------------------------------------------------------------------------
     # Patient Device Assignment Tables
     # -------------------------------------------------------------------------
 
+    op.drop_index(op.f("ix_patient_devices_device_id"), table_name="patient_devices")
+    op.drop_index(op.f("ix_patient_devices_patient_id"), table_name="patient_devices")
     op.drop_index(op.f("ix_patient_devices_id"), table_name="patient_devices")
     op.drop_table("patient_devices")
 
@@ -617,64 +655,62 @@ def downgrade() -> None:
     # User Tables
     # -------------------------------------------------------------------------
 
+    op.drop_index(op.f("ix_users_email"), table_name="users")
     op.drop_index(op.f("ix_users_user_id"), table_name="users")
     op.drop_index(op.f("ix_users_role_id"), table_name="users")
     op.drop_index(op.f("ix_users_id"), table_name="users")
     op.drop_table("users")
-    
+
     # -------------------------------------------------------------------------
-    # Permission Tables
+    # Role / Permission Tables
     # -------------------------------------------------------------------------
 
-    op.drop_index(
-        op.f("ix_role_permissions_id"),
-        table_name="role_permissions",
-    )
-    
+    op.drop_index(op.f("ix_role_permissions_id"), table_name="role_permissions")
     op.drop_table("role_permissions")
-    
-    op.drop_index(
-        op.f("ix_permissions_id"),
-        table_name="permissions",
-    )
-    
-    op.drop_table("permissions")
 
-    # -------------------------------------------------------------------------
-    # Role Tables
-    # -------------------------------------------------------------------------
-    
-    op.drop_index(
-        op.f("ix_permissions_id"),
-        table_name="permissions",
-    )
-    
+    op.drop_index(op.f("ix_permissions_id"), table_name="permissions")
     op.drop_table("permissions")
-
 
     op.drop_index(op.f("ix_roles_id"), table_name="roles")
     op.drop_table("roles")
+
+    # -------------------------------------------------------------------------
+    # Patient Tables
+    # -------------------------------------------------------------------------
+
+    op.drop_index(op.f("ix_patients_hospital_id"), table_name="patients")
+    op.drop_index(op.f("ix_patients_bed_id"), table_name="patients")
+    op.drop_index(op.f("ix_patients_id"), table_name="patients")
+    op.drop_table("patients")
+
+    # -------------------------------------------------------------------------
+    # Admin Master Tables
+    # -------------------------------------------------------------------------
+
+    op.drop_index(op.f("ix_device_masters_bed_id"), table_name="device_masters")
+    op.drop_index(op.f("ix_device_masters_serial"), table_name="device_masters")
+    op.drop_index(op.f("ix_device_masters_id"), table_name="device_masters")
+    op.drop_table("device_masters")
+
+    op.drop_index(op.f("ix_bed_masters_icu_unit_id"), table_name="bed_masters")
+    op.drop_index(op.f("ix_bed_masters_bed_id"), table_name="bed_masters")
+    op.drop_index(op.f("ix_bed_masters_id"), table_name="bed_masters")
+    op.drop_table("bed_masters")
+
+    op.drop_index(op.f("ix_icu_unit_masters_icu_name"), table_name="icu_unit_masters")
+    op.drop_index(op.f("ix_icu_unit_masters_id"), table_name="icu_unit_masters")
+    op.drop_table("icu_unit_masters")
 
     # -------------------------------------------------------------------------
     # Hospital Tables
     # -------------------------------------------------------------------------
 
     op.drop_index(op.f("ix_hospital_units_id"), table_name="hospital_units")
-    op.drop_index(
-        op.f("ix_hospital_units_hospital_id"),
-        table_name="hospital_units",
-    )
+    op.drop_index(op.f("ix_hospital_units_hospital_id"), table_name="hospital_units")
     op.drop_table("hospital_units")
 
     op.drop_index(op.f("ix_hospitals_id"), table_name="hospitals")
     op.drop_table("hospitals")
-
-    # -------------------------------------------------------------------------
-    # Patient Tables
-    # -------------------------------------------------------------------------
-
-    op.drop_index(op.f("ix_patients_id"), table_name="patients")
-    op.drop_table("patients")
 
     # -------------------------------------------------------------------------
     # Device Type / Runtime Device Tables

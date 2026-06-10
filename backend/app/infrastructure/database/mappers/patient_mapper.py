@@ -1,14 +1,8 @@
 from typing import List
 
 from app.domain.entities.patient import Patient
-from app.domain.entities.vital import Vital
-
-from app.infrastructure.database.models.patient import (
-    PatientModel,
-)
-from app.infrastructure.database.models.vital import (
-    VitalModel,
-)
+from app.infrastructure.database.mappers.vital_mapper import VitalMapper
+from app.infrastructure.database.models.patient import PatientModel
 
 
 class PatientMapper:
@@ -17,45 +11,6 @@ class PatientMapper:
     and SQLAlchemy models.
     """
 
-    # ------------------------------------------------------------------
-    # Vital mappings
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def vital_to_domain(
-        vital_model: VitalModel,
-    ) -> Vital:
-        """
-        Convert Vital SQLAlchemy model -> Vital domain entity.
-        """
-        return Vital(
-            id=vital_model.id,
-            patient_id=vital_model.patient_id,
-            hr=vital_model.hr,
-            bp_sys=vital_model.bp_sys,
-            bp_dia=vital_model.bp_dia,
-            spo2=vital_model.spo2,
-            temp=vital_model.temp,
-            rr=vital_model.rr,
-            recorded_at=vital_model.recorded_at,
-        )
-
-    @staticmethod
-    def vital_to_domain_list(
-        vital_models: List[VitalModel],
-    ) -> List[Vital]:
-        """
-        Convert Vital model list -> Vital domain list.
-        """
-        return [
-            PatientMapper.vital_to_domain(vital)
-            for vital in vital_models
-        ]
-
-    # ------------------------------------------------------------------
-    # Patient mappings
-    # ------------------------------------------------------------------
-
     @staticmethod
     def to_domain(
         patient_model: PatientModel,
@@ -63,12 +18,10 @@ class PatientMapper:
         """
         Convert Patient SQLAlchemy model -> domain entity.
         """
-        vitals: List[Vital] = []
+        vitals = []
 
         if getattr(patient_model, "vitals", None):
-            vitals = PatientMapper.vital_to_domain_list(
-                patient_model.vitals
-            )
+            vitals = VitalMapper.to_domain_list(patient_model.vitals)
 
         timeline = []
 
@@ -105,6 +58,7 @@ class PatientMapper:
             comorbidities=patient_model.comorbidities or [],
             vitals=vitals,
             timeline=timeline,
+            bed=getattr(patient_model, "bed", None),
         )
 
     @staticmethod

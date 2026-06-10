@@ -12,6 +12,7 @@ from app.api.schemas.patient import (
     PatientResponse,
     PatientUpdateRequest,
 )
+from app.api.schemas.patient_details import PatientDetailsResponse
 from app.application.alarms.use_cases.get_patient_alarms import (
     GetPatientAlarmsUseCase,
 )
@@ -21,8 +22,9 @@ from app.application.patients.use_cases.create_patient import (
 from app.application.patients.use_cases.discharge_patient import (
     DischargePatientUseCase,
 )
-from app.application.patients.use_cases.get_patient import (
-    GetPatientUseCase,
+from app.application.patients.use_cases.get_patient import GetPatientUseCase
+from app.application.patients.use_cases.get_patient_details import (
+    GetPatientDetailsUseCase,
 )
 from app.application.patients.use_cases.list_patients import (
     ListPatientsUseCase,
@@ -67,31 +69,28 @@ def alarm_permission(action: PermissionAction):
     )
 
 
-# =========================================================
-# Response Mappers
-# =========================================================
-
-def to_patient_response(
-    patient,
-) -> PatientResponse:
+def to_patient_response(patient) -> PatientResponse:
     """
     Convert patient entity into API response schema.
     """
     return PatientResponse.model_validate(patient)
 
 
-def to_patient_detail_response(
-    patient,
-) -> PatientDetailResponse:
+def to_patient_detail_response(patient) -> PatientDetailResponse:
     """
     Convert patient detail entity into API response schema.
     """
     return PatientDetailResponse.model_validate(patient)
 
 
-# =========================================================
-# Patient Routes
-# =========================================================
+def to_patient_details_response(
+    payload: dict,
+) -> PatientDetailsResponse:
+    """
+    Convert patient details aggregation payload into API response schema.
+    """
+    return PatientDetailsResponse.model_validate(payload)
+
 
 @router.post(
     "",
@@ -101,9 +100,7 @@ def to_patient_detail_response(
 )
 def create_patient(
     payload: PatientCreateRequest,
-    _current_user=patient_permission(
-        PermissionAction.CREATE
-    ),
+    _current_user=patient_permission(PermissionAction.CREATE),
     use_case: CreatePatientUseCase = Depends(
         PatientProvider.get_create_patient_use_case
     ),
@@ -111,7 +108,6 @@ def create_patient(
     """
     Create a new patient admission record.
     """
-
     patient = Patient(
         name=payload.name,
         age=payload.age,
@@ -140,9 +136,7 @@ def create_patient(
     responses=STANDARD_ERROR_RESPONSES,
 )
 def list_patients(
-    _current_user=patient_permission(
-        PermissionAction.VIEW
-    ),
+    _current_user=patient_permission(PermissionAction.VIEW),
     use_case: ListPatientsUseCase = Depends(
         PatientProvider.get_list_patients_use_case
     ),
@@ -150,13 +144,33 @@ def list_patients(
     """
     List all patients.
     """
-
     patients = use_case.execute()
 
     return [
         to_patient_response(patient)
         for patient in patients
     ]
+
+
+@router.get(
+    "/{patient_id}/details",
+    response_model=PatientDetailsResponse,
+    status_code=status.HTTP_200_OK,
+    responses=STANDARD_ERROR_RESPONSES,
+)
+def get_patient_details(
+    patient_id: int,
+    _current_user=patient_permission(PermissionAction.VIEW),
+    use_case: GetPatientDetailsUseCase = Depends(
+        PatientProvider.get_patient_details_use_case
+    ),
+) -> PatientDetailsResponse:
+    """
+    Fetch complete patient details required by the Patient Details screen.
+    """
+    result = use_case.execute(patient_id)
+
+    return to_patient_details_response(result)
 
 
 @router.get(
@@ -167,9 +181,7 @@ def list_patients(
 )
 def get_patient(
     patient_id: int,
-    _current_user=patient_permission(
-        PermissionAction.VIEW
-    ),
+    _current_user=patient_permission(PermissionAction.VIEW),
     use_case: GetPatientUseCase = Depends(
         PatientProvider.get_get_patient_use_case
     ),
@@ -177,7 +189,6 @@ def get_patient(
     """
     Fetch detailed patient information.
     """
-
     patient = use_case.execute(patient_id)
 
     return to_patient_detail_response(patient)
@@ -192,9 +203,7 @@ def get_patient(
 def update_patient(
     patient_id: int,
     payload: PatientUpdateRequest,
-    _current_user=patient_permission(
-        PermissionAction.MODIFY
-    ),
+    _current_user=patient_permission(PermissionAction.MODIFY),
     use_case: UpdatePatientUseCase = Depends(
         PatientProvider.get_update_patient_use_case
     ),
@@ -202,7 +211,6 @@ def update_patient(
     """
     Update patient details and admission metadata.
     """
-
     patient = Patient(
         name=payload.name,
         age=payload.age,
@@ -235,9 +243,7 @@ def update_patient(
 )
 def discharge_patient(
     patient_id: int,
-    _current_user=patient_permission(
-        PermissionAction.CANCEL
-    ),
+    _current_user=patient_permission(PermissionAction.CANCEL),
     use_case: DischargePatientUseCase = Depends(
         PatientProvider.get_discharge_patient_use_case
     ),
@@ -245,7 +251,6 @@ def discharge_patient(
     """
     Discharge a patient from the ICU workflow.
     """
-
     patient = use_case.execute(patient_id)
 
     return to_patient_response(patient)
@@ -260,9 +265,7 @@ def discharge_patient(
 def get_patient_alarms(
     patient_id: int,
     acknowledged: bool | None = None,
-    _current_user=alarm_permission(
-        PermissionAction.VIEW
-    ),
+    _current_user=alarm_permission(PermissionAction.VIEW),
     use_case: GetPatientAlarmsUseCase = Depends(
         AlarmProvider.get_patient_alarms_use_case
     ),
@@ -270,7 +273,6 @@ def get_patient_alarms(
     """
     Fetch alarms associated with a patient.
     """
-
     return use_case.execute(
         patient_id=patient_id,
         acknowledged=acknowledged,

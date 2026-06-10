@@ -12,13 +12,10 @@ Seeds:
 - device masters
 - users
 - sample patients
+- patient staff assignments
 - sample vitals
 - sample timeline events
 - sample alarms
-
-Current hierarchy:
-Hospital -> HospitalUnit -> ICUUnitMaster -> BedMaster -> DeviceMaster
-                                      └── Patient
 """
 
 import random
@@ -39,6 +36,9 @@ from app.infrastructure.database.models.hospital_unit import HospitalUnitModel
 from app.infrastructure.database.models.icu_unit_master import ICUUnitMasterModel
 from app.infrastructure.database.models.latest_vital import LatestVitalModel
 from app.infrastructure.database.models.patient import PatientModel
+from app.infrastructure.database.models.patient_staff_assignment import (
+    PatientStaffAssignmentModel,
+)
 from app.infrastructure.database.models.permission import PermissionModel
 from app.infrastructure.database.models.role import RoleModel
 from app.infrastructure.database.models.role_permission import RolePermissionModel
@@ -82,9 +82,7 @@ HOSPITAL_NAME = "Apollo Main Hospital"
 HOSPITAL_CODE = "APOLLO-BLR-001"
 
 UNIT_NAMES = ["MICU", "SICU", "NICU"]
-
 SEED_ICU_NAMES = ["MICU-1", "SICU-1", "NICU-1"]
-
 SEED_BED_IDS = ["B1", "B2", "B3"]
 
 SEED_PATIENT_NAMES = [
@@ -127,7 +125,6 @@ def utc_now() -> datetime:
     """
     Return timezone-aware UTC datetime.
     """
-
     return datetime.now(UTC)
 
 
@@ -135,7 +132,6 @@ def clear_seed_data(db: Session) -> None:
     """
     Clear known dev seed records in dependency-safe order.
     """
-
     seed_patients = (
         db.query(PatientModel)
         .filter(PatientModel.name.in_(SEED_PATIENT_NAMES))
@@ -144,6 +140,10 @@ def clear_seed_data(db: Session) -> None:
     seed_patient_ids = [patient.id for patient in seed_patients]
 
     if seed_patient_ids:
+        db.query(PatientStaffAssignmentModel).filter(
+            PatientStaffAssignmentModel.patient_id.in_(seed_patient_ids)
+        ).delete(synchronize_session=False)
+
         db.query(AlarmModel).filter(
             AlarmModel.patient_id.in_(seed_patient_ids)
         ).delete(synchronize_session=False)
@@ -209,7 +209,6 @@ def seed_permissions(db: Session) -> list[PermissionModel]:
     """
     Seed RBAC permissions.
     """
-
     permissions: list[PermissionModel] = []
 
     for module in PERMISSION_MODULES:
@@ -229,7 +228,6 @@ def seed_roles(db: Session) -> dict[str, RoleModel]:
     """
     Seed roles matching UserRole enum values.
     """
-
     roles: dict[str, RoleModel] = {}
 
     for role in UserRole:
@@ -252,7 +250,6 @@ def seed_role_permissions(
     """
     Seed role-permission mappings.
     """
-
     permission_map = {
         (permission.module, permission.action): permission
         for permission in permissions
@@ -297,13 +294,11 @@ def seed_role_permissions(
         [
             PermissionAction.VIEW,
             PermissionAction.MODIFY,
-        ]
+        ],
     )
     doctor_permissions += permissions_for(
         PermissionModule.DASHBOARD,
-        [
-            PermissionAction.VIEW,
-        ],
+        [PermissionAction.VIEW],
     )
 
     nurse_permissions: list[PermissionModel] = []
@@ -330,13 +325,11 @@ def seed_role_permissions(
         [
             PermissionAction.VIEW,
             PermissionAction.MODIFY,
-        ]
+        ],
     )
     nurse_permissions += permissions_for(
         PermissionModule.DASHBOARD,
-        [
-            PermissionAction.VIEW,
-        ],
+        [PermissionAction.VIEW],
     )
 
     role_permission_map = {
@@ -363,7 +356,6 @@ def seed_hospital_and_units(
     """
     Seed one hospital and hospital units.
     """
-
     hospital = HospitalModel(
         name=HOSPITAL_NAME,
         code=HOSPITAL_CODE,
@@ -394,13 +386,10 @@ def seed_hospital_and_units(
     return hospital, units
 
 
-def seed_icu_units(
-    db: Session,
-) -> list[ICUUnitMasterModel]:
+def seed_icu_units(db: Session) -> list[ICUUnitMasterModel]:
     """
     Seed ICU unit master records.
     """
-
     payloads = [
         {
             "icu_name": "MICU-1",
@@ -449,7 +438,6 @@ def seed_beds(
     """
     Seed bed master records mapped to ICU units.
     """
-
     payloads = [
         {
             "bed_id": "B1",
@@ -510,7 +498,6 @@ def seed_device_masters(
     """
     Seed device master records mapped to beds.
     """
-
     payloads = [
         {
             "device_type": "MONITOR",
@@ -561,7 +548,6 @@ def seed_users(
     """
     Seed default dev users.
     """
-
     users: list[UserModel] = []
 
     for user_data in SEED_USERS:
@@ -595,7 +581,6 @@ def seed_patients(
     """
     Seed sample ICU patients assigned to bed master records.
     """
-
     patient_payloads = [
         {
             "name": "Rahul Sharma",
@@ -665,6 +650,50 @@ def seed_patients(
     return patients
 
 
+def seed_patient_staff_assignments(
+    db: Session,
+    patients: list[PatientModel],
+    users: list[UserModel],
+) -> None:
+    """
+    Seed active doctor and nurse assignments for each patient.
+    """
+    doctor = next(
+        user
+        for user in users
+        if user.user_id == "doctor"
+    )
+
+    nurse = next(
+        user
+        for user in users
+        if user.user_id == "nurse"
+    )
+
+    for patient in patients:
+        db.add(
+            PatientStaffAssignmentModel(
+                patient_id=patient.id,
+                user_id=doctor.id,
+                assignment_type="DOCTOR",
+                assigned_at=utc_now(),
+                ended_at=None,
+                is_active=True,
+            )
+        )
+
+        db.add(
+            PatientStaffAssignmentModel(
+                patient_id=patient.id,
+                user_id=nurse.id,
+                assignment_type="NURSE",
+                assigned_at=utc_now(),
+                ended_at=None,
+                is_active=True,
+            )
+        )
+
+
 def seed_vitals(
     db: Session,
     patients: list[PatientModel],
@@ -672,7 +701,6 @@ def seed_vitals(
     """
     Seed sample vitals and latest vital snapshot for each patient.
     """
-
     for patient in patients:
         for index in range(5):
             db.add(
@@ -684,8 +712,7 @@ def seed_vitals(
                     spo2=random.randint(92, 100),
                     temp=round(random.uniform(97.0, 100.5), 1),
                     rr=random.randint(14, 26),
-                    recorded_at=utc_now()
-                    - timedelta(minutes=index * 15),
+                    recorded_at=utc_now() - timedelta(minutes=index * 15),
                 )
             )
 
@@ -714,7 +741,6 @@ def seed_timeline(
     """
     Seed sample timeline events.
     """
-
     for patient in patients:
         db.add(
             TimelineEventModel(
@@ -735,7 +761,6 @@ def seed_alarms(
     """
     Seed sample ICU alarms.
     """
-
     alarm_payloads = [
         {
             "patient": patients[0],
@@ -802,7 +827,6 @@ def main() -> None:
     """
     Run full dev seed process.
     """
-
     db = SessionLocal()
 
     try:
@@ -841,7 +865,7 @@ def main() -> None:
         )
 
         print("Creating users...")
-        seed_users(
+        users = seed_users(
             db=db,
             roles=roles,
             hospital=hospital,
@@ -853,6 +877,13 @@ def main() -> None:
             db=db,
             hospital=hospital,
             beds=beds,
+        )
+
+        print("Creating staff assignments...")
+        seed_patient_staff_assignments(
+            db=db,
+            patients=patients,
+            users=users,
         )
 
         print("Creating vitals...")

@@ -34,8 +34,8 @@ class PatientCreateRequest(BaseModel):
 
     hospital_id: Optional[int] = Field(default=None, alias="hospitalId")
 
-    history: List[str] = []
-    comorbidities: List[str] = []
+    history: List[str] = Field(default_factory=list)
+    comorbidities: List[str] = Field(default_factory=list)
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -65,8 +65,8 @@ class PatientUpdateRequest(BaseModel):
 
     hospital_id: Optional[int] = Field(default=None, alias="hospitalId")
 
-    history: List[str] = []
-    comorbidities: List[str] = []
+    history: List[str] = Field(default_factory=list)
+    comorbidities: List[str] = Field(default_factory=list)
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -80,6 +80,32 @@ class TimelineEventModelResponse(BaseModel):
     time: Optional[str] = None
     event: Optional[str] = None
     type: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+
+class LatestVitalResponse(BaseModel):
+    """
+    Response schema for the latest live vital snapshot.
+    """
+
+    id: Optional[int] = None
+
+    patient_id: Optional[int] = Field(default=None, alias="patientId")
+    bed_id: Optional[int] = Field(default=None, alias="bedId")
+    device_id: Optional[int] = Field(default=None, alias="deviceId")
+
+    hr: Optional[float] = None
+    bp_sys: Optional[float] = Field(default=None, alias="bpSys")
+    bp_dia: Optional[float] = Field(default=None, alias="bpDia")
+    spo2: Optional[float] = None
+    temp: Optional[float] = None
+    rr: Optional[float] = None
+
+    status: Optional[str] = None
+
+    recorded_at: Optional[datetime] = Field(default=None, alias="recordedAt")
+    updated_at: Optional[datetime] = Field(default=None, alias="updatedAt")
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
@@ -112,8 +138,8 @@ class PatientResponse(BaseModel):
 
     status: str
 
-    history: List[str] = []
-    comorbidities: List[str] = []
+    history: List[str] = Field(default_factory=list)
+    comorbidities: List[str] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
@@ -123,5 +149,19 @@ class PatientDetailResponse(PatientResponse):
     Detailed patient response including ICU-related relationships.
     """
 
-    vitals: List[VitalResponse] = []
-    timeline: List[TimelineEventModelResponse] = []
+    vitals: List[VitalResponse] = Field(default_factory=list)
+    timeline: List[TimelineEventModelResponse] = Field(default_factory=list)
+
+
+class PatientOverviewResponse(BaseModel):
+    """
+    Tab-ready response for the patient overview section.
+    """
+
+    patient: PatientResponse
+    latest_vitals: Optional[LatestVitalResponse] = Field(
+        default=None,
+        alias="latestVitals",
+    )
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)

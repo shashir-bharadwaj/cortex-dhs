@@ -22,6 +22,9 @@ from app.infrastructure.database.models.device_master import DeviceMasterModel
 from app.infrastructure.database.models.permission import PermissionModel
 from app.infrastructure.database.models.role_permission import RolePermissionModel
 from app.infrastructure.database.models.latest_vital import LatestVitalModel
+from app.infrastructure.database.models.patient_staff_assignment import (
+    PatientStaffAssignmentModel,
+)
 
 
 __all__ = [
@@ -38,9 +41,9 @@ __all__ = [
     "BedMasterModel",
     "DeviceMasterModel",
     "PermissionModel",
-    "RoleModel",
     "RolePermissionModel",
     "LatestVitalModel",
+    "PatientStaffAssignmentModel"
 
 ]
 # Add future models here too

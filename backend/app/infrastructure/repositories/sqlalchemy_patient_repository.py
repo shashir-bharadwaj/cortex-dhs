@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.domain.entities.patient import Patient
 from app.domain.repositories.patient_repository import PatientRepository
@@ -30,13 +30,16 @@ class SQLAlchemyPatientRepository(PatientRepository):
 
     def by_id(self, patient_id: int) -> Optional[Patient]:
         """
-        Fetch a patient by ID with related ICU details.
+        Fetch a patient by ID with related details.
+
+        Collection relationships use selectinload to avoid large joined
+        result sets when patient detail pages need tab-ready data.
         """
         patient_model = (
             self.db.query(PatientModel)
             .options(
-                joinedload(PatientModel.vitals),
-                joinedload(PatientModel.timeline),
+                selectinload(PatientModel.vitals),
+                selectinload(PatientModel.timeline),
                 joinedload(PatientModel.bed),
                 joinedload(PatientModel.hospital),
             )
@@ -152,7 +155,7 @@ class SQLAlchemyPatientRepository(PatientRepository):
         bed_id: int,
     ) -> Optional[Patient]:
         """
-        Resolve currently active patient assigned to bed.
+        Resolve currently active patient assigned to a bed.
 
         Used by ingestion flow to map external device/bed events
         to the current Cortex patient.

@@ -1,4 +1,4 @@
-# app/infrastructure/database/mappers/latest_vital_maper.py
+# app/infrastructure/database/mappers/latest_vital_mapper.py
 
 from typing import List
 

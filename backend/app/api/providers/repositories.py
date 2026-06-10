@@ -2,16 +2,26 @@ from fastapi import Depends
 from sqlalchemy.orm import Session
 
 from app.api.providers.db import DBProvider
-from app.domain.repositories.latest_vital_repository import LatestVitalRepository
 from app.infrastructure.repositories.sqlalchemy_alarm_repository import (
     SQLAlchemyAlarmRepository,
 )
-from app.infrastructure.repositories.sqlalchemy_bed_repository import SQLAlchemyBedRepository
-from app.infrastructure.repositories.sqlalchemy_device_master_repository import SQLAlchemyDeviceMasterRepository
-from app.infrastructure.repositories.sqlalchemy_hospital_repository import SQLAlchemyHospitalRepository
-from app.infrastructure.repositories.sqlalchemy_latest_vital_repository import SQLAlchemyLatestVitalRepository
+from app.infrastructure.repositories.sqlalchemy_bed_repository import (
+    SQLAlchemyBedRepository,
+)
+from app.infrastructure.repositories.sqlalchemy_device_master_repository import (
+    SQLAlchemyDeviceMasterRepository,
+)
+from app.infrastructure.repositories.sqlalchemy_hospital_repository import (
+    SQLAlchemyHospitalRepository,
+)
+from app.infrastructure.repositories.sqlalchemy_latest_vital_repository import (
+    SQLAlchemyLatestVitalRepository,
+)
 from app.infrastructure.repositories.sqlalchemy_patient_repository import (
     SQLAlchemyPatientRepository,
+)
+from app.infrastructure.repositories.sqlalchemy_patient_staff_assignment_repository import (
+    SQLAlchemyPatientStaffAssignmentRepository,
 )
 from app.infrastructure.repositories.sqlalchemy_permission_repository import (
     SQLAlchemyPermissionRepository,
@@ -85,7 +95,6 @@ class RepositoryProvider:
         db: Session = Depends(DBProvider.get_db_session),
     ) -> SQLAlchemyAlarmRepository:
         return SQLAlchemyAlarmRepository(db)
-    
 
     @staticmethod
     def get_hospital_repository(
@@ -104,12 +113,21 @@ class RepositoryProvider:
         db: Session = Depends(DBProvider.get_db_session),
     ) -> SQLAlchemyDeviceMasterRepository:
         return SQLAlchemyDeviceMasterRepository(db)
-    
+
     @staticmethod
     def get_latest_vital_repository(
-    db: Session = Depends(DBProvider.get_db_session),
-    ) -> LatestVitalRepository:
+        db: Session = Depends(DBProvider.get_db_session),
+    ) -> SQLAlchemyLatestVitalRepository:
         """
         Provide latest vital snapshot repository.
         """
         return SQLAlchemyLatestVitalRepository(db)
+
+    @staticmethod
+    def get_patient_staff_assignment_repository(
+        db: Session = Depends(DBProvider.get_db_session),
+    ) -> SQLAlchemyPatientStaffAssignmentRepository:
+        """
+        Provide patient staff assignment repository.
+        """
+        return SQLAlchemyPatientStaffAssignmentRepository(db)

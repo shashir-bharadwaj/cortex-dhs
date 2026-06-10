@@ -12,13 +12,44 @@ class VitalCreateRequest(BaseModel):
     for a specific patient.
     """
 
-    hr: Optional[float] = Field(default=None, description="Heart rate in beats per minute", example=90)
-    bp_sys: Optional[float] = Field(default=None, description="Systolic blood pressure", example=120, alias="bpSys")
-    bp_dia: Optional[float] = Field(default=None, description="Diastolic blood pressure", example=80, alias="bpDia")
-    spo2: Optional[float] = Field(default=None, description="Oxygen saturation percentage", example=98)
-    temp: Optional[float] = Field(default=None, description="Body temperature in Farenheit", example=98.9)
-    rr: Optional[float] = Field(default=None, description="Respiratory rate per minute", example=18)
-    recorded_at: Optional[datetime] = Field(default=None, description="Timestamp when the vital was recorded", example="2026-04-13T10:00:00", alias="recordedAt")
+    hr: Optional[float] = Field(
+        default=None,
+        description="Heart rate in beats per minute",
+        example=90,
+    )
+    bp_sys: Optional[float] = Field(
+        default=None,
+        description="Systolic blood pressure",
+        example=120,
+        alias="bpSys",
+    )
+    bp_dia: Optional[float] = Field(
+        default=None,
+        description="Diastolic blood pressure",
+        example=80,
+        alias="bpDia",
+    )
+    spo2: Optional[float] = Field(
+        default=None,
+        description="Oxygen saturation percentage",
+        example=98,
+    )
+    temp: Optional[float] = Field(
+        default=None,
+        description="Body temperature in Fahrenheit",
+        example=98.9,
+    )
+    rr: Optional[float] = Field(
+        default=None,
+        description="Respiratory rate per minute",
+        example=18,
+    )
+    recorded_at: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when the vital was recorded",
+        example="2026-04-13T10:00:00",
+        alias="recordedAt",
+    )
 
     model_config = ConfigDict(populate_by_name=True)
 

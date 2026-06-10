@@ -77,3 +77,8 @@ class UserModel(Base):
         "RoleModel",
         back_populates="users",
     )
+
+    staff_assignments = relationship(
+        "PatientStaffAssignmentModel",
+        back_populates="user",
+    )

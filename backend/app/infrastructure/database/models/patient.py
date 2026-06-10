@@ -47,7 +47,7 @@ class PatientModel(Base):
     hospital_id = Column(
         Integer,
         ForeignKey("hospitals.id"),
-        nullable=True,
+        nullable=False,
         index=True,
     )
 
@@ -76,4 +76,10 @@ class PatientModel(Base):
         back_populates="patient",
         cascade="all, delete-orphan",
         order_by="desc(TimelineEventModel.created_at)",
+    )
+
+    staff_assignments = relationship(
+        "PatientStaffAssignmentModel",
+        back_populates="patient",
+        cascade="all, delete-orphan",
     )
