@@ -9,6 +9,7 @@ from app.api.v1.endpoints import (
     patients,
     timeline,
     vitals,
+    clinical_notes,
 )
 
 from app.api.v1.endpoints.admin import (
@@ -35,3 +36,4 @@ api_router.include_router(icu_management.router)
 api_router.include_router(bed_management.router)
 api_router.include_router(device_management.router)
 api_router.include_router(user_management.router)
+api_router.include_router(clinical_notes.router)

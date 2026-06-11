@@ -20,6 +20,9 @@ from app.application.patients.use_cases.update_patient import (
     UpdatePatientUseCase,
 )
 from app.domain.repositories.alarm_repository import AlarmRepository
+from app.domain.repositories.clinical_note_repository import (
+    ClinicalNoteRepository,
+)
 from app.domain.repositories.device_master_repository import (
     DeviceMasterRepository,
 )
@@ -36,16 +39,6 @@ from app.domain.repositories.vital_repository import VitalRepository
 class PatientProvider:
     """
     Dependency wiring for patient-related use cases.
-
-    Responsibilities:
-    - construct use case instances
-    - inject repositories
-    - keep route layer thin
-
-    Non-responsibilities:
-    - business validation
-    - HTTP exception handling
-    - response formatting
     """
 
     @staticmethod
@@ -54,9 +47,6 @@ class PatientProvider:
             RepositoryProvider.get_patient_repository
         ),
     ) -> CreatePatientUseCase:
-        """
-        Build create patient use case.
-        """
         return CreatePatientUseCase(
             patient_repository=patient_repository,
         )
@@ -67,9 +57,6 @@ class PatientProvider:
             RepositoryProvider.get_patient_repository
         ),
     ) -> ListPatientsUseCase:
-        """
-        Build list patients use case.
-        """
         return ListPatientsUseCase(
             patient_repository=patient_repository,
         )
@@ -80,9 +67,6 @@ class PatientProvider:
             RepositoryProvider.get_patient_repository
         ),
     ) -> GetPatientUseCase:
-        """
-        Build get patient use case.
-        """
         return GetPatientUseCase(
             patient_repository=patient_repository,
         )
@@ -93,9 +77,6 @@ class PatientProvider:
             RepositoryProvider.get_patient_repository
         ),
     ) -> UpdatePatientUseCase:
-        """
-        Build update patient use case.
-        """
         return UpdatePatientUseCase(
             patient_repository=patient_repository,
         )
@@ -106,9 +87,6 @@ class PatientProvider:
             RepositoryProvider.get_patient_repository
         ),
     ) -> DischargePatientUseCase:
-        """
-        Build discharge patient use case.
-        """
         return DischargePatientUseCase(
             patient_repository=patient_repository,
         )
@@ -133,6 +111,9 @@ class PatientProvider:
         patient_staff_assignment_repository: PatientStaffAssignmentRepository = Depends(
             RepositoryProvider.get_patient_staff_assignment_repository
         ),
+        clinical_note_repository: ClinicalNoteRepository = Depends(
+            RepositoryProvider.get_clinical_note_repository
+        ),
     ) -> GetPatientDetailsUseCase:
         """
         Build patient details aggregation use case.
@@ -146,4 +127,5 @@ class PatientProvider:
             patient_staff_assignment_repository=(
                 patient_staff_assignment_repository
             ),
+            clinical_note_repository=clinical_note_repository,
         )

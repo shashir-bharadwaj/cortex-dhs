@@ -6,7 +6,9 @@ from app.domain.entities.latest_vital import LatestVital
 from app.domain.repositories.alarm_repository import AlarmRepository
 from app.domain.repositories.bed_repository import BedRepository
 from app.domain.repositories.device_master_repository import DeviceMasterRepository
-from app.domain.repositories.hospital_repository import HospitalRepository
+from app.domain.repositories.icu_unit_master_repository import (
+    ICUUnitMasterRepository,
+)
 from app.domain.repositories.latest_vital_repository import (
     LatestVitalRepository,
 )
@@ -17,63 +19,38 @@ class GetDashboardOverviewUseCase:
     """
     Build aggregated ICU dashboard overview response.
 
-    This use case acts as a read-optimized dashboard aggregation layer.
-    It intentionally fetches data in batches so the frontend can load the
-    landing dashboard with one API call instead of multiple small calls.
+    Dashboard now uses ICUUnitMaster as the source of truth for unit lookup,
+    because beds are linked through bed_masters.icu_unit_id.
     """
 
     def __init__(
         self,
-        hospital_repository: HospitalRepository,
+        icu_unit_repository: ICUUnitMasterRepository,
         bed_repository: BedRepository,
         patient_repository: PatientRepository,
         latest_vital_repository: LatestVitalRepository,
         alarm_repository: AlarmRepository,
         device_repository: DeviceMasterRepository,
     ) -> None:
-        self.hospital_repository = hospital_repository
+        self.icu_unit_repository = icu_unit_repository
         self.bed_repository = bed_repository
         self.patient_repository = patient_repository
-
-        # Latest vitals are read from latest_patient_vitals.
-        # This keeps dashboard reads fast and avoids querying
-        # historical vitals for every request.
         self.latest_vital_repository = latest_vital_repository
-
         self.alarm_repository = alarm_repository
         self.device_repository = device_repository
 
     def execute(self, unit_id: int) -> dict:
         """
-        Return complete dashboard overview for a given ICU/unit.
-
-        Aggregates:
-        - unit summary
-        - bed-wise patient cards
-        - latest vitals snapshot
-        - monitoring devices
-        - alarm indicators
-        - recent alarm list
+        Return complete dashboard overview for a given ICU unit.
         """
 
-        # ---------------------------------------------------------
-        # Fetch ICU unit
-        # ---------------------------------------------------------
-
-        unit = self.hospital_repository.get_unit(unit_id)
+        unit = self.icu_unit_repository.by_id(unit_id)
 
         if not unit:
             raise ResourceNotFoundError(
-                message="Hospital unit not found.",
+                message="ICU unit not found.",
                 meta={"unit_id": unit_id},
             )
-
-        # ---------------------------------------------------------
-        # Fetch dashboard source data in batches
-        # ---------------------------------------------------------
-        # These batch calls avoid N+1 query problems. The dashboard needs
-        # many related records at once, so repositories expose grouped
-        # read methods instead of calling one query per bed/patient.
 
         beds = self.bed_repository.list_by_icu_unit_id(unit_id)
         bed_ids = [bed.id for bed in beds]
@@ -81,9 +58,6 @@ class GetDashboardOverviewUseCase:
         patients = self.patient_repository.list_active_by_bed_ids(bed_ids)
         patient_ids = [patient.id for patient in patients]
 
-        # Fetch live patient vitals from the snapshot table.
-        # vitals table = historical stream
-        # latest_patient_vitals = current dashboard state
         latest_vitals = self.latest_vital_repository.list_by_patient_ids(
             patient_ids
         )
@@ -99,17 +73,9 @@ class GetDashboardOverviewUseCase:
 
         monitoring_devices = self.device_repository.list_by_bed_ids(bed_ids)
 
-        # ---------------------------------------------------------
-        # Build lookup maps for alarm-related card indicators
-        # ---------------------------------------------------------
-
         alarm_count_map, critical_alarm_map = self._build_alarm_maps(
             active_alarms
         )
-
-        # ---------------------------------------------------------
-        # Build bed-wise patient cards and dashboard summary
-        # ---------------------------------------------------------
 
         patient_cards, summary = self._build_patient_cards(
             beds=beds,
@@ -121,24 +87,17 @@ class GetDashboardOverviewUseCase:
             active_alarm_count=len(active_alarms),
         )
 
-        # ---------------------------------------------------------
-        # Build recent alarm feed
-        # ---------------------------------------------------------
-
         alarms = self._build_alarm_payload(
             alarms=recent_alarms,
             patients=patients,
             beds=beds,
         )
 
-        # ---------------------------------------------------------
-        # Final dashboard response
-        # ---------------------------------------------------------
-
         return {
             "unit": {
                 "id": unit.id,
-                "name": unit.name,
+                "name": getattr(unit, "icu_name", None),
+                "type": getattr(unit, "type", None),
                 "department": getattr(unit, "department", None),
                 "totalBeds": len(beds),
                 "occupiedBeds": len(patients),
@@ -154,16 +113,7 @@ class GetDashboardOverviewUseCase:
         alarms: list[Alarm],
     ) -> tuple[dict[int, int], dict[int, bool]]:
         """
-        Build quick lookup structures for dashboard rendering.
-
-        Why:
-        ----
-        The dashboard repeatedly needs to know:
-        - how many active alarms each patient has
-        - whether each patient has any critical alarm
-
-        Precomputing maps keeps patient card generation simple and avoids
-        repeatedly scanning the full alarm list for every patient.
+        Build alarm count and critical alarm lookup maps.
         """
 
         alarm_count_map: dict[int, int] = {}
@@ -191,17 +141,8 @@ class GetDashboardOverviewUseCase:
     ) -> tuple[list[dict], dict]:
         """
         Build bed-wise patient dashboard cards.
-
-        Each card aggregates:
-        - bed metadata
-        - patient snapshot
-        - latest vitals
-        - monitoring devices
-        - active alarm count
-        - critical alarm indicator
         """
 
-        # Fast lookup for patient currently assigned to each bed.
         patient_by_bed_id = {
             patient.bed_id: patient
             for patient in patients
@@ -250,13 +191,9 @@ class GetDashboardOverviewUseCase:
                         "age": patient.age,
                         "gender": patient.gender,
                         "diagnosis": patient.diagnosis,
-                        # Doctor assignment is intentionally left nullable
-                        # until doctor-patient assignment is modeled.
-                        "doctor": None,
+                        "doctor": patient.doctor,
                     },
                     "status": status,
-                    # The vitals object is now resolved from latest_patient_vitals,
-                    # so dashboard cards always receive the current live snapshot.
                     "vitals": self._format_vitals(
                         latest_vitals.get(patient.id)
                     ),
@@ -285,9 +222,6 @@ class GetDashboardOverviewUseCase:
     ) -> dict:
         """
         Build dashboard card for an unoccupied bed.
-
-        Empty beds are still returned so the frontend can render a complete
-        bed grid without making a separate bed-management API call.
         """
 
         return {
@@ -311,9 +245,6 @@ class GetDashboardOverviewUseCase:
     ) -> str:
         """
         Determine dashboard status for a patient card.
-
-        Business priority:
-        CRITICAL > WARNING > NORMAL
         """
 
         if critical_alarm_map.get(patient_id):
@@ -330,13 +261,6 @@ class GetDashboardOverviewUseCase:
     ) -> dict | None:
         """
         Convert latest vitals snapshot into dashboard response format.
-
-        Current behavior:
-        - uses latest snapshot only
-        - does not return historical vitals
-        - does not yet evaluate vital-level thresholds
-
-        Threshold-based vital statuses can later be introduced here.
         """
 
         if not vitals:
@@ -383,9 +307,6 @@ class GetDashboardOverviewUseCase:
     ) -> list[dict]:
         """
         Build recent alarm feed shown on the dashboard.
-
-        Each alarm item is enriched with patient and bed context so the
-        frontend does not need additional lookups.
         """
 
         patient_id_to_name = {
@@ -418,7 +339,6 @@ class GetDashboardOverviewUseCase:
                         patient_id_to_bed_id.get(alarm.patient_id),
                         "Unknown",
                     ),
-                    # Current Alarm entity stores source/type as device.
                     "alarmType": alarm.device,
                     "deviceSource": alarm.device,
                     "message": alarm.message,
@@ -434,7 +354,7 @@ class GetDashboardOverviewUseCase:
 
     def _severity_value(self, severity) -> str:
         """
-        Normalize enum/string severity values for safe API serialization.
+        Normalize enum/string severity values for API serialization.
         """
 
         return severity.value if hasattr(severity, "value") else severity

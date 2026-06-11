@@ -2,17 +2,24 @@ from fastapi import Depends
 from sqlalchemy.orm import Session
 
 from app.api.providers.db import DBProvider
+
 from app.infrastructure.repositories.sqlalchemy_alarm_repository import (
     SQLAlchemyAlarmRepository,
 )
 from app.infrastructure.repositories.sqlalchemy_bed_repository import (
     SQLAlchemyBedRepository,
 )
+from app.infrastructure.repositories.sqlalchemy_clinical_note_repository import (
+    SQLAlchemyClinicalNoteRepository,
+)
 from app.infrastructure.repositories.sqlalchemy_device_master_repository import (
     SQLAlchemyDeviceMasterRepository,
 )
 from app.infrastructure.repositories.sqlalchemy_hospital_repository import (
     SQLAlchemyHospitalRepository,
+)
+from app.infrastructure.repositories.sqlalchemy_icu_unit_master_repository import (
+    SQLAlchemyICUUnitMasterRepository,
 )
 from app.infrastructure.repositories.sqlalchemy_latest_vital_repository import (
     SQLAlchemyLatestVitalRepository,
@@ -67,6 +74,15 @@ class RepositoryProvider:
         return SQLAlchemyTimelineRepository(db)
 
     @staticmethod
+    def get_clinical_note_repository(
+        db: Session = Depends(DBProvider.get_db_session),
+    ) -> SQLAlchemyClinicalNoteRepository:
+        """
+        Provide clinical note repository.
+        """
+        return SQLAlchemyClinicalNoteRepository(db)
+
+    @staticmethod
     def get_user_repository(
         db: Session = Depends(DBProvider.get_db_session),
     ) -> SQLAlchemyUserRepository:
@@ -101,6 +117,15 @@ class RepositoryProvider:
         db: Session = Depends(DBProvider.get_db_session),
     ) -> SQLAlchemyHospitalRepository:
         return SQLAlchemyHospitalRepository(db)
+
+    @staticmethod
+    def get_icu_unit_repository(
+        db: Session = Depends(DBProvider.get_db_session),
+    ) -> SQLAlchemyICUUnitMasterRepository:
+        """
+        Provide ICU Unit repository.
+        """
+        return SQLAlchemyICUUnitMasterRepository(db)
 
     @staticmethod
     def get_bed_repository(

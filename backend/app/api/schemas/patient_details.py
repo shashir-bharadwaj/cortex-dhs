@@ -2,11 +2,11 @@ from typing import Any, List
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.api.schemas.alarm import AlarmResponse
+from app.api.schemas.clinical_note import ClinicalNoteResponse
 from app.api.schemas.device_master import (
     DeviceMasterResponse,
 )
-
-from app.api.schemas.alarm import AlarmResponse
 from app.api.schemas.latest_vital import (
     LatestVitalResponse,
 )
@@ -30,6 +30,7 @@ class StaffAssignmentResponse(BaseModel):
         from_attributes=True,
         populate_by_name=True,
     )
+
 
 class PatientOverviewResponse(BaseModel):
     """
@@ -77,13 +78,21 @@ class PatientDetailsResponse(BaseModel):
     )
 
     vitals: List[VitalResponse] = Field(default_factory=list)
+
     devices: List[DeviceMasterResponse] = Field(
         default_factory=list
     )
-    alarms: List[AlarmResponse] = Field(default_factory=list)
-    timeline: List[TimelineEventModelResponse] = Field(default_factory=list)
 
-    notes: List[Any] = Field(default_factory=list)
+    alarms: List[AlarmResponse] = Field(default_factory=list)
+
+    timeline: List[TimelineEventModelResponse] = Field(
+        default_factory=list
+    )
+
+    notes: List[ClinicalNoteResponse] = Field(
+        default_factory=list
+    )
+
     reports: List[Any] = Field(default_factory=list)
 
     model_config = ConfigDict(

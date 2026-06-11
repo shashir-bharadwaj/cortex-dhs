@@ -34,7 +34,7 @@ class SQLAlchemyICUUnitMasterRepository(ICUUnitMasterRepository):
     def list(self) -> List[ICUUnitMaster]:
         models = (
             self.db.query(ICUUnitMasterModel)
-            .order_by(ICUUnitMasterModel.id.desc())
+            .order_by(ICUUnitMasterModel.id.asc())
             .all()
         )
 

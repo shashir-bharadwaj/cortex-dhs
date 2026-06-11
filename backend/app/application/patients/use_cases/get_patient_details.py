@@ -1,5 +1,8 @@
 from app.core.errors.exceptions import ResourceNotFoundError
 from app.domain.repositories.alarm_repository import AlarmRepository
+from app.domain.repositories.clinical_note_repository import (
+    ClinicalNoteRepository,
+)
 from app.domain.repositories.device_master_repository import DeviceMasterRepository
 from app.domain.repositories.latest_vital_repository import LatestVitalRepository
 from app.domain.repositories.patient_repository import PatientRepository
@@ -21,7 +24,7 @@ class GetPatientDetailsUseCase:
     - Alarms
     - Timeline
     - Staff Assignment
-    - Notes placeholder
+    - Clinical Notes
     - Reports placeholder
     """
 
@@ -33,6 +36,7 @@ class GetPatientDetailsUseCase:
         device_repository: DeviceMasterRepository,
         alarm_repository: AlarmRepository,
         patient_staff_assignment_repository: PatientStaffAssignmentRepository,
+        clinical_note_repository: ClinicalNoteRepository,
     ):
         self.patient_repository = patient_repository
         self.latest_vital_repository = latest_vital_repository
@@ -42,6 +46,7 @@ class GetPatientDetailsUseCase:
         self.patient_staff_assignment_repository = (
             patient_staff_assignment_repository
         )
+        self.clinical_note_repository = clinical_note_repository
 
     def execute(self, patient_id: int) -> dict:
         """
@@ -60,6 +65,7 @@ class GetPatientDetailsUseCase:
         )
         vitals = self.vital_repository.list_by_patient_id(patient_id)
         alarms = self.alarm_repository.by_patient(patient_id)
+        notes = self.clinical_note_repository.list_by_patient_id(patient_id)
 
         devices = []
         if patient.bed_id:
@@ -78,6 +84,7 @@ class GetPatientDetailsUseCase:
                 if not alarm.acknowledged
             ]
         )
+
         return {
             "overview": {
                 "patient": patient,
@@ -95,7 +102,6 @@ class GetPatientDetailsUseCase:
             "devices": devices,
             "alarms": alarms,
             "timeline": patient.timeline,
-            "notes": [],
+            "notes": notes,
             "reports": [],
         }
-        
