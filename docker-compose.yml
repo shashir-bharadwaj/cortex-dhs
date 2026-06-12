@@ -87,7 +87,7 @@ services:
     command: >
       sh -c "
         sleep 10 &&
-        python scripts/simulate_live_vitals.py --api-base-url http://backend:8000 --beds B1 B2 B3 B4 B5 --interval 2
+        python scripts/simulate_live_vitals.py --api-base-url http://backend:8000 --beds B1 B2 B3 B4 B5 B6 B7 B8 B9 B10 S1 S2 S3 S4 S5 S6 S7 S8 N1 N2 N3 N4 N5 N6 N7 N8 --interval 2
       "
     profiles:
       - simulator

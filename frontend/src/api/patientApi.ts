@@ -2,6 +2,7 @@ import api from "./client";
 import type { Patient } from "../types/patient";
 import type { Line } from "../types/line";
 import type { AISuggestion } from "../types/ai";
+import type { Flowsheet } from "../types/flowsheet";
 
 export async function getPatients(): Promise<Patient[]> {
   const response = await api.get("/patients/");
@@ -70,5 +71,18 @@ export async function getPatientAiSuggestions(
   id: number | string
 ): Promise<AISuggestion> {
   const response = await api.get(`/patients/${id}/ai-suggestions`);
+  return response.data;
+}
+
+// ----------------------
+// Flowsheet
+// ----------------------
+
+export async function getPatientFlowsheet(
+  id: number | string,
+  date?: string
+): Promise<Flowsheet> {
+  const params = date ? { date } : {};
+  const response = await api.get(`/patients/${id}/flowsheet`, { params });
   return response.data;
 }
