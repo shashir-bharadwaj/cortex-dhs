@@ -1,11 +1,16 @@
-from typing import List
+import csv
+import io
+from datetime import date
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
+from fastapi.responses import StreamingResponse
 
 from app.api.providers.alarms import AlarmProvider
 from app.api.providers.auth import AuthProvider
 from app.api.providers.patients import PatientProvider
 from app.api.schemas.alarm import AlarmResponse
+from app.api.schemas.flowsheet import FlowsheetResponse
 from app.api.schemas.patient import (
     PatientCreateRequest,
     PatientDetailResponse,
@@ -25,6 +30,9 @@ from app.application.patients.use_cases.discharge_patient import (
 from app.application.patients.use_cases.get_patient import GetPatientUseCase
 from app.application.patients.use_cases.get_patient_details import (
     GetPatientDetailsUseCase,
+)
+from app.application.patients.use_cases.get_patient_flowsheet import (
+    GetPatientFlowsheetUseCase,
 )
 from app.application.patients.use_cases.list_patients import (
     ListPatientsUseCase,
@@ -277,3 +285,150 @@ def get_patient_alarms(
         patient_id=patient_id,
         acknowledged=acknowledged,
     )
+
+
+@router.get(
+    "/{patient_id}/flowsheet",
+    response_model=FlowsheetResponse,
+    status_code=status.HTTP_200_OK,
+    responses=STANDARD_ERROR_RESPONSES,
+)
+def get_patient_flowsheet(
+    patient_id: int,
+    target_date: Optional[date] = Query(default=None, alias="date"),
+    _current_user=patient_permission(PermissionAction.VIEW),
+    use_case: GetPatientFlowsheetUseCase = Depends(
+        PatientProvider.get_flowsheet_use_case
+    ),
+) -> FlowsheetResponse:
+    """
+    Return 24-hour hourly vitals grid for the Flowsheet tab.
+    Pass ?date=YYYY-MM-DD to query a specific day; defaults to today.
+    """
+    result = use_case.execute(patient_id=patient_id, target_date=target_date)
+    return FlowsheetResponse.model_validate(result)
+
+
+@router.get(
+    "/{patient_id}/reports/daily-summary",
+    status_code=status.HTTP_200_OK,
+    responses=STANDARD_ERROR_RESPONSES,
+)
+def get_daily_summary(
+    patient_id: int,
+    _current_user=patient_permission(PermissionAction.VIEW),
+    details_use_case: GetPatientDetailsUseCase = Depends(
+        PatientProvider.get_patient_details_use_case
+    ),
+) -> dict:
+    """
+    Return structured patient data for printing a daily summary PDF.
+    Includes patient demographics, today's vitals, and medication orders.
+    """
+    data = details_use_case.execute(patient_id)
+    patient = data["overview"]["patient"]
+    return {
+        "patient": {
+            "id": patient.id,
+            "name": patient.name,
+            "mrn": patient.mrn,
+            "cr_number": patient.cr_number,
+            "age": patient.age,
+            "gender": patient.gender.value if patient.gender else None,
+            "blood_group": patient.blood_group,
+            "diagnosis": patient.diagnosis,
+            "doctor": patient.doctor,
+            "admission_time": (
+                patient.admission_time.isoformat() if patient.admission_time else None
+            ),
+        },
+        "latest_vitals": data["overview"]["latest_vitals"],
+        "medications": data["medications"],
+        "staff_assignment": data["staff_assignment"],
+        "ventilator_params": data["ventilator_params"],
+        "lab_data": data["lab_data"],
+        "fluid_balance": data["fluid_balance"],
+    }
+
+
+@router.get(
+    "/{patient_id}/reports/vitals-csv",
+    status_code=status.HTTP_200_OK,
+    responses=STANDARD_ERROR_RESPONSES,
+)
+def export_vitals_csv(
+    patient_id: int,
+    _current_user=patient_permission(PermissionAction.VIEW),
+    flowsheet_use_case: GetPatientFlowsheetUseCase = Depends(
+        PatientProvider.get_flowsheet_use_case
+    ),
+) -> StreamingResponse:
+    """
+    Stream today's 24-hour vitals as a downloadable CSV file.
+    """
+    result = flowsheet_use_case.execute(patient_id=patient_id)
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    hours = result["hours"]
+    writer.writerow(["Parameter"] + [f"{h}:00" for h in hours])
+    for row in result["rows"]:
+        values = [row["values"].get(str(h), "") for h in hours]
+        writer.writerow([row["parameter"]] + values)
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename=vitals_{patient_id}_{result['date']}.csv"
+        },
+    )
+
+
+@router.get(
+    "/{patient_id}/reports/discharge-summary",
+    status_code=status.HTTP_200_OK,
+    responses=STANDARD_ERROR_RESPONSES,
+)
+def get_discharge_summary(
+    patient_id: int,
+    _current_user=patient_permission(PermissionAction.VIEW),
+    details_use_case: GetPatientDetailsUseCase = Depends(
+        PatientProvider.get_patient_details_use_case
+    ),
+) -> dict:
+    """
+    Return structured discharge summary data (demographics, clinical notes, timeline).
+    The frontend renders this into a printable document.
+    """
+    data = details_use_case.execute(patient_id)
+    patient = data["overview"]["patient"]
+    return {
+        "patient": {
+            "id": patient.id,
+            "name": patient.name,
+            "mrn": patient.mrn,
+            "cr_number": patient.cr_number,
+            "age": patient.age,
+            "gender": patient.gender.value if patient.gender else None,
+            "blood_group": patient.blood_group,
+            "diagnosis": patient.diagnosis,
+            "comorbidities": patient.comorbidities,
+            "doctor": patient.doctor,
+            "admission_time": (
+                patient.admission_time.isoformat() if patient.admission_time else None
+            ),
+            "weight": patient.weight,
+            "height": patient.height,
+        },
+        "vitals_summary": data["overview"]["latest_vitals"],
+        "medications": data["medications"],
+        "clinical_notes": data["notes"],
+        "timeline": data["timeline"],
+        "lab_data": data["lab_data"],
+        "ventilator_params": data["ventilator_params"],
+        "fluid_balance": data["fluid_balance"],
+        "staff_assignment": data["staff_assignment"],
+    }

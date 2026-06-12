@@ -13,6 +13,9 @@ from app.application.patients.use_cases.get_patient import (
 from app.application.patients.use_cases.get_patient_details import (
     GetPatientDetailsUseCase,
 )
+from app.application.patients.use_cases.get_patient_flowsheet import (
+    GetPatientFlowsheetUseCase,
+)
 from app.application.patients.use_cases.list_patients import (
     ListPatientsUseCase,
 )
@@ -26,13 +29,17 @@ from app.domain.repositories.clinical_note_repository import (
 from app.domain.repositories.device_master_repository import (
     DeviceMasterRepository,
 )
+from app.domain.repositories.fluid_balance_repository import FluidBalanceRepository
+from app.domain.repositories.lab_result_repository import LabResultRepository
 from app.domain.repositories.latest_vital_repository import (
     LatestVitalRepository,
 )
+from app.domain.repositories.medication_order_repository import MedicationOrderRepository
 from app.domain.repositories.patient_repository import PatientRepository
 from app.domain.repositories.patient_staff_assignment_repository import (
     PatientStaffAssignmentRepository,
 )
+from app.domain.repositories.ventilator_setting_repository import VentilatorSettingRepository
 from app.domain.repositories.vital_repository import VitalRepository
 
 
@@ -114,6 +121,18 @@ class PatientProvider:
         clinical_note_repository: ClinicalNoteRepository = Depends(
             RepositoryProvider.get_clinical_note_repository
         ),
+        ventilator_repository: VentilatorSettingRepository = Depends(
+            RepositoryProvider.get_ventilator_setting_repository
+        ),
+        lab_result_repository: LabResultRepository = Depends(
+            RepositoryProvider.get_lab_result_repository
+        ),
+        fluid_balance_repository: FluidBalanceRepository = Depends(
+            RepositoryProvider.get_fluid_balance_repository
+        ),
+        medication_order_repository: MedicationOrderRepository = Depends(
+            RepositoryProvider.get_medication_order_repository
+        ),
     ) -> GetPatientDetailsUseCase:
         """
         Build patient details aggregation use case.
@@ -124,8 +143,24 @@ class PatientProvider:
             vital_repository=vital_repository,
             device_repository=device_repository,
             alarm_repository=alarm_repository,
-            patient_staff_assignment_repository=(
-                patient_staff_assignment_repository
-            ),
+            patient_staff_assignment_repository=patient_staff_assignment_repository,
             clinical_note_repository=clinical_note_repository,
+            ventilator_repository=ventilator_repository,
+            lab_result_repository=lab_result_repository,
+            fluid_balance_repository=fluid_balance_repository,
+            medication_order_repository=medication_order_repository,
+        )
+
+    @staticmethod
+    def get_flowsheet_use_case(
+        patient_repository: PatientRepository = Depends(
+            RepositoryProvider.get_patient_repository
+        ),
+        vital_repository: VitalRepository = Depends(
+            RepositoryProvider.get_vital_repository
+        ),
+    ) -> GetPatientFlowsheetUseCase:
+        return GetPatientFlowsheetUseCase(
+            patient_repository=patient_repository,
+            vital_repository=vital_repository,
         )

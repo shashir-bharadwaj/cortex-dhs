@@ -126,7 +126,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--beds",
         nargs="+",
-        default=["B1", "B2"],
+        default=["B1", "B2", "B3", "B4", "B5"],
     )
 
     parser.add_argument(

@@ -2,7 +2,16 @@
 
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, JSON, String
+from sqlalchemy import (
+    JSON,
+    Column,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+)
 from sqlalchemy.orm import relationship
 
 from app.db.database import Base
@@ -13,20 +22,84 @@ class PatientModel(Base):
     """
     SQLAlchemy model for ICU patients.
 
-    Persistence representation of an admitted patient.
+    Current implementation represents an active
+    patient admission/encounter.
 
-    Current hierarchy:
-    ------------------
-    Hospital -> HospitalUnit -> ICUUnitMaster -> BedMaster -> Patient
+    Future hierarchy:
+
+    Patient (MRN/UHID)
+        └── Encounters (CR Number)
+                └── ICU Stay
     """
 
     __tablename__ = "patients"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
 
-    name = Column(String, nullable=False)
-    age = Column(Integer, nullable=True)
-    gender = Column(Enum(Gender), nullable=False, default=Gender.MALE)
+    # ---------------------------------------------------------
+    # Patient identifiers
+    # ---------------------------------------------------------
+
+    mrn = Column(
+        String(100),
+        nullable=False,
+        index=True,        
+    )
+
+    cr_number = Column(
+        String(100),
+        nullable=False,
+        index=True,
+        unique=True,
+    )
+
+    contact_number = Column(
+        String(20),
+        nullable=True,
+    )
+
+    # ---------------------------------------------------------
+    # Demographics
+    # ---------------------------------------------------------
+
+    name = Column(
+        String,
+        nullable=False,
+    )
+
+    age = Column(
+        Integer,
+        nullable=True,
+    )
+
+    gender = Column(
+        Enum(Gender),
+        nullable=False,
+        default=Gender.MALE,
+    )
+
+    blood_group = Column(
+        String,
+        nullable=True,
+    )
+
+    weight = Column(
+        Float,
+        nullable=True,
+    )
+
+    height = Column(
+        Float,
+        nullable=True,
+    )
+
+    # ---------------------------------------------------------
+    # Admission details
+    # ---------------------------------------------------------
 
     bed_id = Column(
         Integer,
@@ -35,14 +108,21 @@ class PatientModel(Base):
         index=True,
     )
 
-    diagnosis = Column(String, nullable=True)
+    diagnosis = Column(
+        String,
+        nullable=True,
+    )
 
-    weight = Column(Float, nullable=True)
-    height = Column(Float, nullable=True)
-    blood_group = Column(String, nullable=True)
-    doctor = Column(String, nullable=True)
+    doctor = Column(
+        String,
+        nullable=True,
+    )
 
-    admission_time = Column(DateTime, default=datetime.utcnow, nullable=False)
+    admission_time = Column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+    )
 
     hospital_id = Column(
         Integer,
@@ -51,10 +131,31 @@ class PatientModel(Base):
         index=True,
     )
 
-    status = Column(String, nullable=False, default="admitted")
+    status = Column(
+        String,
+        nullable=False,
+        default="admitted",
+    )
 
-    history = Column(JSON, nullable=True, default=list)
-    comorbidities = Column(JSON, nullable=True, default=list)
+    # ---------------------------------------------------------
+    # Clinical context
+    # ---------------------------------------------------------
+
+    history = Column(
+        JSON,
+        nullable=True,
+        default=list,
+    )
+
+    comorbidities = Column(
+        JSON,
+        nullable=True,
+        default=list,
+    )
+
+    # ---------------------------------------------------------
+    # Relationships
+    # ---------------------------------------------------------
 
     vitals = relationship(
         "VitalModel",
@@ -82,4 +183,11 @@ class PatientModel(Base):
         "PatientStaffAssignmentModel",
         back_populates="patient",
         cascade="all, delete-orphan",
+    )
+
+    clinical_notes = relationship(
+        "ClinicalNoteModel",
+        back_populates="patient",
+        cascade="all, delete-orphan",
+        order_by="desc(ClinicalNoteModel.created_at)",
     )

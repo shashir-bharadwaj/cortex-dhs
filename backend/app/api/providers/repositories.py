@@ -48,6 +48,18 @@ from app.infrastructure.repositories.sqlalchemy_user_repository import (
 from app.infrastructure.repositories.sqlalchemy_vital_repository import (
     SQLAlchemyVitalRepository,
 )
+from app.infrastructure.repositories.sqlalchemy_ventilator_setting_repository import (
+    SQLAlchemyVentilatorSettingRepository,
+)
+from app.infrastructure.repositories.sqlalchemy_lab_result_repository import (
+    SQLAlchemyLabResultRepository,
+)
+from app.infrastructure.repositories.sqlalchemy_fluid_balance_repository import (
+    SQLAlchemyFluidBalanceRepository,
+)
+from app.infrastructure.repositories.sqlalchemy_medication_order_repository import (
+    SQLAlchemyMedicationOrderRepository,
+)
 
 
 class RepositoryProvider:
@@ -156,3 +168,27 @@ class RepositoryProvider:
         Provide patient staff assignment repository.
         """
         return SQLAlchemyPatientStaffAssignmentRepository(db)
+
+    @staticmethod
+    def get_ventilator_setting_repository(
+        db: Session = Depends(DBProvider.get_db_session),
+    ) -> SQLAlchemyVentilatorSettingRepository:
+        return SQLAlchemyVentilatorSettingRepository(db)
+
+    @staticmethod
+    def get_lab_result_repository(
+        db: Session = Depends(DBProvider.get_db_session),
+    ) -> SQLAlchemyLabResultRepository:
+        return SQLAlchemyLabResultRepository(db)
+
+    @staticmethod
+    def get_fluid_balance_repository(
+        db: Session = Depends(DBProvider.get_db_session),
+    ) -> SQLAlchemyFluidBalanceRepository:
+        return SQLAlchemyFluidBalanceRepository(db)
+
+    @staticmethod
+    def get_medication_order_repository(
+        db: Session = Depends(DBProvider.get_db_session),
+    ) -> SQLAlchemyMedicationOrderRepository:
+        return SQLAlchemyMedicationOrderRepository(db)

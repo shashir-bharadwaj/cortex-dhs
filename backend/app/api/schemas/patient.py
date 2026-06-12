@@ -14,7 +14,12 @@ class PatientCreateRequest(BaseModel):
     Request schema for creating a patient.
     """
 
+    mrn: str
+    cr_number: str = Field(alias="crNumber")
+
     name: str
+    contact_number: Optional[str] = Field(default=None, alias="contactNumber")
+
     age: Optional[int] = None
     gender: Gender = Gender.MALE
 
@@ -45,7 +50,12 @@ class PatientUpdateRequest(BaseModel):
     Request schema for updating a patient.
     """
 
+    mrn: Optional[str] = None
+    cr_number: Optional[str] = Field(default=None, alias="crNumber")
+
     name: str
+    contact_number: Optional[str] = Field(default=None, alias="contactNumber")
+
     age: Optional[int] = None
     gender: Gender = Gender.MALE
 
@@ -116,7 +126,13 @@ class PatientResponse(BaseModel):
     """
 
     id: int
+
+    mrn: Optional[str] = None
+    cr_number: Optional[str] = Field(default=None, alias="crNumber")
+
     name: str
+    contact_number: Optional[str] = Field(default=None, alias="contactNumber")
+
     age: Optional[int] = None
     gender: Gender = Gender.MALE
 
@@ -125,6 +141,7 @@ class PatientResponse(BaseModel):
 
     weight: Optional[float] = None
     height: Optional[float] = None
+    bsa: Optional[float] = None
 
     blood_group: Optional[str] = Field(default=None, alias="bloodGroup")
     doctor: Optional[str] = None
@@ -142,6 +159,17 @@ class PatientResponse(BaseModel):
     comorbidities: List[str] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+    @classmethod
+    def model_validate(cls, obj, *args, **kwargs):
+        instance = super().model_validate(obj, *args, **kwargs)
+        # Compute BSA (Mosteller formula) if height and weight are available
+        if instance.bsa is None and instance.height and instance.weight:
+            import math
+            instance.bsa = round(
+                math.sqrt((instance.height * instance.weight) / 3600), 2
+            )
+        return instance
 
 
 class PatientDetailResponse(PatientResponse):
@@ -163,5 +191,44 @@ class PatientOverviewResponse(BaseModel):
         default=None,
         alias="latestVitals",
     )
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+
+class PatientListItemResponse(BaseModel):
+    """
+    Lightweight response schema for the Patients landing page table.
+    """
+
+    patient_id: int = Field(alias="patientId")
+
+    mrn: Optional[str] = None
+    cr_number: Optional[str] = Field(default=None, alias="crNumber")
+
+    name: str
+    age: Optional[int] = None
+    gender: Gender = Gender.MALE
+
+    contact_number: Optional[str] = Field(default=None, alias="contactNumber")
+    diagnosis: Optional[str] = None
+
+    admitted_date: Optional[str] = Field(default=None, alias="admittedDate")
+    attending_doctor: Optional[str] = Field(default=None, alias="attendingDoctor")
+
+    bed_id: Optional[int] = Field(default=None, alias="bedId")
+    bed_label: Optional[str] = Field(default=None, alias="bedLabel")
+
+    status: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+
+class PatientListResponse(BaseModel):
+    """
+    Response schema for the Patients landing page.
+    """
+
+    items: List[PatientListItemResponse] = Field(default_factory=list)
+    total: int
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
