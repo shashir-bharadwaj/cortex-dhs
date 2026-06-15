@@ -85,5 +85,4 @@ class VitalProvider:
         """
         return ListPatientVitalsUseCase(
             vital_repository=vital_repository,
-            patient_repository=patient_repository,
         )

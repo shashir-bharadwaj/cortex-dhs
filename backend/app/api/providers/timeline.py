@@ -72,5 +72,4 @@ class TimelineProvider:
         """
         return ListPatientTimelineUseCase(
             timeline_repository=timeline_repository,
-            patient_repository=patient_repository,
         )

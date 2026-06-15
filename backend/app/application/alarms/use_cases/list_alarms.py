@@ -12,5 +12,20 @@ class ListAlarmsUseCase:
     def __init__(self, alarm_repository: AlarmRepository):
         self.alarm_repository = alarm_repository
 
-    def execute(self) -> List[Alarm]:
-        return self.alarm_repository.list()
+    def execute(
+        self,
+        hospital_id: str | None = None,
+        unit_id: str | None = None,
+        severity: str | None = None,
+        acknowledged: bool | None = None,
+        silenced: bool | None = None,
+        patient_id: int | None = None,
+    ) -> List[Alarm]:
+        return self.alarm_repository.list(
+            hospital_id=hospital_id,
+            unit_id=unit_id,
+            severity=severity,
+            acknowledged=acknowledged,
+            silenced=silenced,
+            patient_id=patient_id,
+        )

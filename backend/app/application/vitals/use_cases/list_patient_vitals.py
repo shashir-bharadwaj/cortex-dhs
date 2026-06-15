@@ -13,4 +13,4 @@ class ListPatientVitalsUseCase:
         self.vital_repository = vital_repository
 
     def execute(self, patient_id: int) -> List[Vital]:
-        return self.vital_repository.list_by_patient(patient_id)
+        return self.vital_repository.list_by_patient_id(patient_id)
