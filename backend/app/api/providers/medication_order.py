@@ -4,6 +4,9 @@ from app.api.providers.repositories import RepositoryProvider
 from app.application.medication.use_cases.create_medication_order import (
     CreateMedicationOrderUseCase,
 )
+from app.application.medication.use_cases.list_active_infusions import (
+    ListActiveInfusionsUseCase,
+)
 from app.application.medication.use_cases.list_medication_orders import (
     ListMedicationOrdersUseCase,
 )
@@ -42,4 +45,14 @@ class MedicationOrderProvider:
         return ListMedicationOrdersUseCase(
             medication_order_repository=medication_order_repository,
             patient_repository=patient_repository,
+        )
+
+    @staticmethod
+    def get_list_active_infusions_use_case(
+        medication_order_repository: MedicationOrderRepository = Depends(
+            RepositoryProvider.get_medication_order_repository
+        ),
+    ) -> ListActiveInfusionsUseCase:
+        return ListActiveInfusionsUseCase(
+            medication_order_repository=medication_order_repository,
         )

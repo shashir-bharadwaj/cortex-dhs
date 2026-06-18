@@ -1,8 +1,14 @@
-import { getPatients } from "./patientApi";
-import { BedOverview } from "../types/dashboard";
-import { buildBedOverview } from "../utils/dashboard";
+import api from "./client";
+import { DashboardOverview, ICUUnitMaster } from "../types/dashboard";
 
-export async function getBedOverview(): Promise<BedOverview[]> {
-  const patients = await getPatients();
-  return buildBedOverview(patients, 10);
+export async function getDashboardUnits(): Promise<ICUUnitMaster[]> {
+  const response = await api.get("/dashboard/units");
+  return response.data;
+}
+
+export async function getDashboardOverview(unitId: number): Promise<DashboardOverview> {
+  const response = await api.get("/dashboard/overview", {
+    params: { unitId },
+  });
+  return response.data;
 }

@@ -1,8 +1,17 @@
 export interface Alert {
   id: number;
-  patient_id: number;
-  type: string;
-  severity: string;
+  patientId: number;
+  patientName: string;
+  bedId: string;
+  device: string;
   message: string;
-  created_at: string;
+  severity: "Warning" | "Critical";
+  acknowledged: boolean;
+  silenced: boolean;
+  escalated: boolean;
+  timestamp: string;
+  acknowledgedBy?: string | null;
+  silencedBy?: string | null;
+  escalatedBy?: string | null;
+  escalateTo?: string | null;
 }

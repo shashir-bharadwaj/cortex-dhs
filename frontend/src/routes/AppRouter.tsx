@@ -6,6 +6,11 @@ import DashboardPage from "../pages/dashboard/DashboardPage";
 import PatientsPage from "../pages/patients/PatientsPage";
 import PatientDetailPage from "../pages/patients/PatientDetailPage";
 import DevicesPage from "../pages/devices/DevicesPage";
+import AlertsPage from "../pages/alerts/AlertsPage";
+import MedicationPage from "../pages/medication/MedicationPage";
+import NotesPage from "../pages/notes/NotesPage";
+import TasksPage from "../pages/tasks/TasksPage";
+import HandoverPage from "../pages/handover/HandoverPage";
 
 import UserManager from "../pages/admin/UserManager";
 import RoleManager from "../pages/admin/RoleManager";
@@ -35,6 +40,11 @@ const AppRouter: React.FC = () => {
         <Route path="patients" element={<PatientsPage />} />
         <Route path="patients/:id" element={<PatientDetailPage />} />
         <Route path="devices" element={<DevicesPage />} />
+        <Route path="alerts" element={<AlertsPage />} />
+        <Route path="medication" element={<MedicationPage />} />
+        <Route path="notes" element={<NotesPage />} />
+        <Route path="tasks" element={<TasksPage />} />
+        <Route path="handover" element={<HandoverPage />} />
 
         {/* Admin */}
         <Route path="admin/users" element={<UserManager />} />

@@ -11,7 +11,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter>
       <AuthProvider>
-        <ConfigProvider>
+        <ConfigProvider theme={{ token: { colorPrimary: "#5b2be0" } }}>
           <App />
         </ConfigProvider>
       </AuthProvider>

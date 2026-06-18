@@ -25,6 +25,12 @@ engine = create_engine(
     future=True,
     pool_pre_ping=True,
     echo=False,  # Set to True if you want SQL query logs
+    # Larger pool so high-frequency device ingestion can't starve
+    # interactive requests (login, dashboard) of DB connections.
+    pool_size=20,
+    max_overflow=40,
+    pool_timeout=10,
+    pool_recycle=1800,
 )
 
 # -------------------------------------------------------------------

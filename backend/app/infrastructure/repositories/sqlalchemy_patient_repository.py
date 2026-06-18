@@ -5,7 +5,23 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from app.domain.entities.patient import Patient
 from app.domain.repositories.patient_repository import PatientRepository
 from app.infrastructure.database.mappers.patient_mapper import PatientMapper
+from app.infrastructure.database.models.alarm import AlarmModel
+from app.infrastructure.database.models.clinical_note import ClinicalNoteModel
+from app.infrastructure.database.models.fluid_balance import FluidBalanceModel
+from app.infrastructure.database.models.lab_result import LabResultModel
+from app.infrastructure.database.models.latest_vital import LatestVitalModel
+from app.infrastructure.database.models.medication_order import (
+    MedicationOrderModel,
+)
 from app.infrastructure.database.models.patient import PatientModel
+from app.infrastructure.database.models.patient_staff_assignment import (
+    PatientStaffAssignmentModel,
+)
+from app.infrastructure.database.models.timeline import TimelineEventModel
+from app.infrastructure.database.models.ventilator_setting import (
+    VentilatorSettingModel,
+)
+from app.infrastructure.database.models.vital import VitalModel
 
 
 class SQLAlchemyPatientRepository(PatientRepository):
@@ -52,17 +68,69 @@ class SQLAlchemyPatientRepository(PatientRepository):
 
         return PatientMapper.to_domain(patient_model)
 
-    def list(self) -> List[Patient]:
+    def list(
+        self,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> List[Patient]:
         """
-        List all patients ordered by latest admission first.
+        List patients ordered by latest admission first.
+
+        Supports limit/offset pagination for scroll-based loading. The
+        secondary sort on id keeps ordering deterministic across pages
+        when admission times tie.
         """
-        patient_models = (
+        query = (
             self.db.query(PatientModel)
-            .order_by(PatientModel.admission_time.desc())
-            .all()
+            .order_by(
+                PatientModel.admission_time.desc(),
+                PatientModel.id.asc(),
+            )
         )
 
-        return PatientMapper.to_domain_list(patient_models)
+        if offset:
+            query = query.offset(offset)
+
+        if limit is not None:
+            query = query.limit(limit)
+
+        return PatientMapper.to_domain_list(query.all())
+
+    def count(self) -> int:
+        """Total number of patient records."""
+        return self.db.query(PatientModel).count()
+
+    def delete(self, patient_id: int) -> bool:
+        """
+        Hard-delete a patient and all dependent clinical records.
+
+        Children are removed first to satisfy foreign-key constraints.
+        """
+        patient_model = (
+            self.db.query(PatientModel)
+            .filter(PatientModel.id == patient_id)
+            .first()
+        )
+
+        if not patient_model:
+            return False
+
+        for model in [
+            PatientStaffAssignmentModel, AlarmModel, LatestVitalModel,
+            VitalModel, TimelineEventModel, ClinicalNoteModel,
+            VentilatorSettingModel, LabResultModel, FluidBalanceModel,
+            MedicationOrderModel,
+        ]:
+            self.db.query(model).filter(
+                model.patient_id == patient_id
+            ).delete(synchronize_session=False)
+
+        self.db.query(PatientModel).filter(
+            PatientModel.id == patient_id
+        ).delete(synchronize_session=False)
+
+        self.db.commit()
+        return True
 
     def update(self, patient: Patient) -> Patient:
         """

@@ -10,6 +10,7 @@ Units:
 import random
 from datetime import UTC, datetime, timedelta
 
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.db.database import SessionLocal
@@ -661,9 +662,22 @@ def utc_now() -> datetime:
 # ---------------------------------------------------------------------------
 
 def clear_seed_data(db: Session) -> None:
+    # Resolve the seed hospital up front so we can also clear any patients
+    # admitted against it through the app (not just the seed-named ones) —
+    # otherwise an app-created patient would later block hospital deletion.
+    hospital = db.query(HospitalModel).filter(
+        HospitalModel.code == HOSPITAL_CODE
+    ).first()
+
+    patient_filter = PatientModel.name.in_(ALL_PATIENT_NAMES)
+    if hospital:
+        patient_filter = patient_filter | (
+            PatientModel.hospital_id == hospital.id
+        )
+
     seed_patients = (
         db.query(PatientModel)
-        .filter(PatientModel.name.in_(ALL_PATIENT_NAMES))
+        .filter(patient_filter)
         .all()
     )
     seed_patient_ids = [p.id for p in seed_patients]
@@ -718,6 +732,50 @@ def clear_seed_data(db: Session) -> None:
 
     db.commit()
 
+    # DELETE leaves Postgres identity sequences advancing, so each reseed
+    # would hand out ever-higher IDs (patient 1 -> 27 -> 88 ...). Realign
+    # each sequence to MAX(id)+1 so a clean DB restarts IDs at 1 and stays
+    # safe if any non-seed rows happen to remain.
+    reset_id_sequences(db)
+
+
+# Tables with an integer `id` identity column whose sequence should be
+# realigned after clearing seed data.
+_SEQUENCE_RESET_MODELS = [
+    HospitalModel, HospitalUnitModel, ICUUnitMasterModel, BedMasterModel,
+    DeviceMasterModel, UserModel, RoleModel, PermissionModel,
+    PatientModel, PatientStaffAssignmentModel,
+    VitalModel, LatestVitalModel, AlarmModel, TimelineEventModel,
+    ClinicalNoteModel, VentilatorSettingModel, LabResultModel,
+    FluidBalanceModel, MedicationOrderModel,
+]
+
+
+def reset_id_sequences(db: Session) -> None:
+    """
+    Realign each table's `id` identity sequence to MAX(id)+1 (1 when empty).
+
+    Table names come from trusted model metadata (not user input), so they
+    are safe to interpolate. Tables without a serial/identity `id` sequence
+    (e.g. composite-key association tables) are skipped via the NULL guard.
+    """
+    for model in _SEQUENCE_RESET_MODELS:
+        table = model.__tablename__
+        db.execute(
+            text(
+                f"""
+                SELECT setval(
+                    seq,
+                    COALESCE((SELECT MAX(id) FROM {table}), 0) + 1,
+                    false
+                )
+                FROM pg_get_serial_sequence('{table}', 'id') AS seq
+                WHERE seq IS NOT NULL
+                """
+            )
+        )
+    db.commit()
+
 
 # ---------------------------------------------------------------------------
 # Auth / permissions
@@ -763,7 +821,7 @@ def seed_role_permissions(
         + perms_for(PermissionModule.DASHBOARD,[PermissionAction.VIEW])
     )
     nur_p = (
-        perms_for(PermissionModule.PATIENTS,   [PermissionAction.VIEW])
+        perms_for(PermissionModule.PATIENTS,   [PermissionAction.VIEW, PermissionAction.CREATE, PermissionAction.MODIFY])
         + perms_for(PermissionModule.VITALS,   [PermissionAction.VIEW, PermissionAction.CREATE])
         + perms_for(PermissionModule.TIMELINE, [PermissionAction.VIEW, PermissionAction.CREATE])
         + perms_for(PermissionModule.ALARMS,   [PermissionAction.VIEW, PermissionAction.MODIFY])

@@ -6,10 +6,12 @@ from app.api.v1.endpoints import (
     clinical_notes,
     dashboard,
     fluid_balance,
+    handover,
     hospitals,
     ingestion,
     lab_results,
     medication_orders,
+    nurse_tasks,
     patients,
     timeline,
     ventilator_settings,
@@ -40,7 +42,12 @@ api_router.include_router(clinical_notes.router)
 api_router.include_router(ventilator_settings.router)
 api_router.include_router(lab_results.router)
 api_router.include_router(fluid_balance.router)
+api_router.include_router(medication_orders.patients_router)
 api_router.include_router(medication_orders.router)
+
+# Operational modules
+api_router.include_router(nurse_tasks.router)
+api_router.include_router(handover.router)
 
 # Admin modules
 api_router.include_router(icu_management.router)

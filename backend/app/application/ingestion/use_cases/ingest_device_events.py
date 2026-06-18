@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 from typing import Any
 
+from fastapi.concurrency import run_in_threadpool
+
 from app.core.websocket_manager import websocket_manager
 from app.domain.entities.latest_vital import LatestVital
 from app.domain.enums.websocket_event import WebSocketEventType
@@ -73,14 +75,44 @@ class IngestDeviceEventsUseCase:
         """
         Process a batch of device events from the Edge SDK.
 
-        This method is async because measurement and alarm events
-        broadcast live updates over WebSocket after persistence.
+        Persistence is synchronous SQLAlchemy work, so it runs in a worker
+        thread (run_in_threadpool) to avoid blocking the async event loop —
+        otherwise a high-frequency ingestion firehose stalls every other
+        request (login, dashboard) for the duration of each batch. WebSocket
+        broadcasts are collected during persistence and emitted afterwards
+        on the event loop.
+        """
+        summary, messages = await run_in_threadpool(
+            self._persist_batch,
+            events,
+        )
+
+        for unit_id, payload in messages:
+            try:
+                await websocket_manager.broadcast_to_unit(
+                    unit_id=unit_id,
+                    message=payload,
+                )
+            except Exception:
+                # Broadcasting is best-effort; never fail ingestion on it.
+                pass
+
+        return summary
+
+    def _persist_batch(
+        self,
+        events: list[Any],
+    ) -> tuple[dict, list]:
+        """
+        Synchronously persist a batch of events and collect the WebSocket
+        messages to broadcast. Runs entirely off the event loop.
         """
         received = len(events)
         processed = 0
         vitals_created = 0
         alarms_created = 0
         failed = 0
+        messages: list = []
 
         for event in events:
             try:
@@ -99,20 +131,22 @@ class IngestDeviceEventsUseCase:
                 event_type = event.event_type.lower()
 
                 if event_type == "measurement":
-                    created = await self._create_vital(
+                    created, message = self._create_vital(
                         event=event,
                         patient=patient,
-                        bed=bed
+                        bed=bed,
                     )
 
                     if created:
                         processed += 1
                         vitals_created += 1
+                        if message:
+                            messages.append(message)
                     else:
                         failed += 1
 
                 elif event_type == "alarm":
-                    await self._create_alarm(
+                    message = self._create_alarm(
                         event=event,
                         patient=patient,
                         bed=bed,
@@ -120,6 +154,8 @@ class IngestDeviceEventsUseCase:
 
                     processed += 1
                     alarms_created += 1
+                    if message:
+                        messages.append(message)
 
                 else:
                     failed += 1
@@ -127,13 +163,15 @@ class IngestDeviceEventsUseCase:
             except Exception:
                 failed += 1
 
-        return {
+        summary = {
             "received": received,
             "processed": processed,
             "vitals_created": vitals_created,
             "alarms_created": alarms_created,
             "failed": failed,
         }
+
+        return summary, messages
 
     def _resolve_bed(
         self,
@@ -158,28 +196,28 @@ class IngestDeviceEventsUseCase:
             bed.id
         )
 
-    async def _create_vital(
+    def _create_vital(
         self,
         event,
         patient,
         bed,
-    ) -> bool:
+    ) -> tuple[bool, tuple | None]:
         """
-        Create a historical Vital row, update latest live snapshot,
-        and broadcast the updated snapshot to subscribed ICU dashboards.
+        Create a historical Vital row, update latest live snapshot, and
+        return the (unit_id, payload) WebSocket message to broadcast.
         """
         if not event.metric:
-            return False
+            return False, None
 
         if not event.metric.code:
-            return False
+            return False, None
 
         metric_field = self.METRIC_MAPPING.get(
             event.metric.code.lower()
         )
 
         if not metric_field:
-            return False
+            return False, None
 
         recorded_at = self._resolve_timestamp(event)
 
@@ -265,9 +303,9 @@ class IngestDeviceEventsUseCase:
             latest_vital
         )
 
-        await websocket_manager.broadcast_to_unit(
-            unit_id=bed.icu_unit_id,
-            message={
+        message = (
+            bed.icu_unit_id,
+            {
                 "type": WebSocketEventType.LIVE_VITAL_UPDATE,
                 "patient_id": patient.id,
                 "bed_id": patient.bed_id,
@@ -287,17 +325,17 @@ class IngestDeviceEventsUseCase:
             },
         )
 
-        return True
+        return True, message
 
-    async def _create_alarm(
+    def _create_alarm(
         self,
         event,
         patient,
         bed,
-    ) -> None:
+    ) -> tuple | None:
         """
-        Create an Alarm row from a canonical alarm event
-        and broadcast the live alarm event to subscribed ICU dashboards.
+        Create an Alarm row from a canonical alarm event and return the
+        (unit_id, payload) WebSocket message to broadcast.
         """
         alarm_data = {
             "timestamp": self._resolve_timestamp(event),
@@ -328,9 +366,9 @@ class IngestDeviceEventsUseCase:
             )
         )
 
-        await websocket_manager.broadcast_to_unit(
-            unit_id=bed.icu_unit_id,
-            message={
+        return (
+            bed.icu_unit_id,
+            {
                 "type": WebSocketEventType.LIVE_ALARM_UPDATE,
                 "unit_id": bed.icu_unit_id,
                 "patient_id": patient.id,

@@ -60,6 +60,9 @@ from app.infrastructure.repositories.sqlalchemy_fluid_balance_repository import 
 from app.infrastructure.repositories.sqlalchemy_medication_order_repository import (
     SQLAlchemyMedicationOrderRepository,
 )
+from app.infrastructure.repositories.sqlalchemy_nurse_task_repository import (
+    SQLAlchemyNurseTaskRepository,
+)
 
 
 class RepositoryProvider:
@@ -192,3 +195,9 @@ class RepositoryProvider:
         db: Session = Depends(DBProvider.get_db_session),
     ) -> SQLAlchemyMedicationOrderRepository:
         return SQLAlchemyMedicationOrderRepository(db)
+
+    @staticmethod
+    def get_nurse_task_repository(
+        db: Session = Depends(DBProvider.get_db_session),
+    ) -> SQLAlchemyNurseTaskRepository:
+        return SQLAlchemyNurseTaskRepository(db)

@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.api.schemas.vitals import VitalResponse
 from app.domain.enums.patient import Gender
@@ -12,10 +12,13 @@ from app.domain.enums.patient import Gender
 class PatientCreateRequest(BaseModel):
     """
     Request schema for creating a patient.
+
+    mrn / cr_number are optional — when omitted they are auto-generated
+    server-side (the Add Patient form does not collect them).
     """
 
-    mrn: str
-    cr_number: str = Field(alias="crNumber")
+    mrn: Optional[str] = None
+    cr_number: Optional[str] = Field(default=None, alias="crNumber")
 
     name: str
     contact_number: Optional[str] = Field(default=None, alias="contactNumber")
@@ -160,16 +163,18 @@ class PatientResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
-    @classmethod
-    def model_validate(cls, obj, *args, **kwargs):
-        instance = super().model_validate(obj, *args, **kwargs)
-        # Compute BSA (Mosteller formula) if height and weight are available
-        if instance.bsa is None and instance.height and instance.weight:
+    @model_validator(mode="after")
+    def compute_bsa(self):
+        # Compute BSA (Mosteller formula) when height + weight are available.
+        # Runs for both top-level and nested validation (unlike overriding
+        # model_validate, which Pydantic skips for nested models).
+        if self.bsa is None and self.height and self.weight:
             import math
-            instance.bsa = round(
-                math.sqrt((instance.height * instance.weight) / 3600), 2
+
+            self.bsa = round(
+                math.sqrt((self.height * self.weight) / 3600), 2
             )
-        return instance
+        return self
 
 
 class PatientDetailResponse(PatientResponse):

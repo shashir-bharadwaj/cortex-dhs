@@ -29,3 +29,7 @@ class MedicationOrder:
 
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
+    # Populated only for cross-patient aggregate views
+    patient_name: Optional[str] = None
+    bed_label: Optional[str] = None

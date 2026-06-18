@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Table, message } from "antd";
-import { getVitals } from "../../api/vitalsApi";
+import { getVitalsByPatient } from "../../api/vitalsApi";
 import { Vital } from "../../types/vital";
 import PageHeader from "../../components/common/pageHeader";
 
@@ -12,7 +12,7 @@ const VitalsPage: React.FC = () => {
     async function fetchVitals() {
       try {
         setLoading(true);
-        const data = await getVitals();
+        const data = await getVitalsByPatient(0);
         setVitals(data);
       } catch (error) {
         console.error("Failed to fetch vitals:", error);

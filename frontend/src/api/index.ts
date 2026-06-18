@@ -5,3 +5,7 @@ export * from "./userApi";
 export * from "./adminApi";
 export * from "./vitalsApi";
 export * from "./alertsApi";
+export * from "./nurseTaskApi";
+export * from "./medicationApi";
+export * from "./notesApi";
+export * from "./handoverApi";

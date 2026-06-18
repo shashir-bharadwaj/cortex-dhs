@@ -12,5 +12,12 @@ class ListPatientsUseCase:
     def __init__(self, patient_repository: PatientRepository):
         self.patient_repository = patient_repository
 
-    def execute(self) -> List[Patient]:
-        return self.patient_repository.list()
+    def execute(
+        self,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> List[Patient]:
+        return self.patient_repository.list(limit=limit, offset=offset)
+
+    def count(self) -> int:
+        return self.patient_repository.count()

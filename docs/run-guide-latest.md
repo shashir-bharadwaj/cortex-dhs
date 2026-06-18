@@ -1,284 +1,294 @@
-# Cortex ICU Platform – Run Guide (Updated)
+# Cortex DHS / ICU Platform – Run Guide (Current)
 
-This guide explains how to set up, run, and test the Cortex ICU Platform locally using Docker Compose. It reflects the current architecture using **PostgreSQL + Alembic + Seed Scripts**.
+How to set up, run, seed, and test the Cortex platform locally. This reflects
+the current stack: **PostgreSQL 15 + Alembic + idempotent seed scripts +
+FastAPI + React (Vite)**, with a state-based vital simulator and live
+WebSocket streaming.
 
 ---
 
-# 1. Requirements
+## 1. Requirements
 
 To run via Docker:
 
-* Docker 20.10+
-* Docker Compose v2
-* Minimum: 4GB RAM, 2 CPU cores
+- Docker 20.10+ and Docker Compose **v2** (`docker compose`, not `docker-compose`)
+- ~4 GB RAM, 2 CPU cores
+
+For manual (non-Docker) setup: Python 3.12+, Node.js 18+, PostgreSQL 15.
 
 ---
 
-# 2. Running with Docker (Recommended)
+## 2. Quick start (Docker)
 
 ```bash
 git clone <repository>
-cd cortex_icu_full_app_v3
+cd cortex-dhs
+
+# Full stack INCLUDING the live vital simulator:
+make up            # == docker compose --profile simulator up -d
+
+# …or without the simulator:
 docker compose up --build
 ```
 
+On startup the **backend** container runs, in order:
+
+1. `alembic upgrade head` – create/upgrade all tables
+2. `python scripts/seed_dev_data.py` – seed reference + demo data (idempotent)
+3. `uvicorn app.main:app --reload` – start the API
+
+Because seeding finishes **before** Uvicorn (and therefore before the
+simulator) starts, there is no first-run data race.
+
+### Services
+
+| Service           | URL / Address                  | Notes                                    |
+| ----------------- | ------------------------------ | ---------------------------------------- |
+| Frontend (Vite)   | http://localhost:5173          | React PWA, dev server with HMR           |
+| Backend (FastAPI) | http://localhost:8000          | Swagger at `/docs`, ReDoc at `/redoc`    |
+| Live vitals WS    | ws://localhost:8000/api/v1/ws/live-vitals/{unitId} | per-ICU-unit stream    |
+| Database (PG 15)  | internal only (`db:5432`)      | **not** published to the host by default |
+
+> The DB port is intentionally **not** exposed to the host (the backend reaches
+> it over the Docker network as `db:5432`). To get host `psql` access, add
+> `ports: ["5433:5432"]` to the `db` service in `docker-compose.yml`.
+
 ---
 
-## Services
+## 3. Make targets
 
-| Service  | URL                        |
-| -------- | -------------------------- |
-| Frontend | http://localhost:5173      |
-| Backend  | http://localhost:8000/docs |
-| DB       | localhost:5432             |
+A `Makefile` at the repo root wraps the common operations:
 
----
+| Command                            | What it does                                          |
+| ---------------------------------- | ----------------------------------------------------- |
+| `make up`                          | Start the full stack **including** the simulator      |
+| `make down`                        | Stop & remove the stack **with `--remove-orphans`**   |
+| `make reseed`                      | **Race-proof** reseed: pause simulator → seed → resume |
+| `make seed`                        | Alias for `reseed`                                    |
+| `make sim-stop` / `make sim-start` | Control only the vital simulator                      |
+| `make restart-backend`             | Restart the backend container                         |
+| `make logs`                        | Tail backend logs                                     |
+| `make ps`                          | Container status                                      |
 
-# 3. Database Initialization Flow
-
-Startup sequence:
-
-1. PostgreSQL container starts
-2. Backend waits for DB health
-3. Alembic runs migrations
-4. Seed script inserts initial data
-5. Backend API starts
+`make down` uses `--remove-orphans` to avoid the "network is still in use"
+error caused by the simulator container outliving a plain `docker compose down`.
 
 ---
 
-## Migrations
+## 4. Default logins
 
-Automatically executed on startup:
+Authentication is by **email + password** (JSON body to `POST /api/v1/auth/login`).
+The seed creates three users:
+
+| Role   | Email               | Password |
+| ------ | ------------------- | -------- |
+| Admin  | `admin@cortex.com`  | `admin`  |
+| Doctor | `doctor@cortex.com` | `doctor` |
+| Nurse  | `nurse@cortex.com`  | `nurse`  |
 
 ```bash
-python -m alembic upgrade head
+curl -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"nurse@cortex.com","password":"nurse"}'
+# -> { "token": "...", "user": { ... } }
 ```
 
-This creates all tables:
-
-* users
-* roles
-* patients
-* vitals
-* devices
-* etc.
+Send the token as `Authorization: Bearer <token>` on subsequent requests.
 
 ---
 
-## Seeding
+## 5. Seeded data
 
-Seed script runs after migrations:
+`backend/scripts/seed_dev_data.py` is **idempotent** — it clears prior seed
+data (and realigns identity sequences so IDs restart at 1) before inserting:
+
+- Roles (admin / doctor / nurse) + RBAC permissions
+  - Nurse has `PATIENTS: VIEW, CREATE, MODIFY` (can add/edit/delete patients)
+- 1 hospital → 3 ICU units: **MICU-1, SICU-1, NICU-1**
+- Beds `B1–B10`, `S1–S8`, `N1–N8` and a monitor device per bed
+- 26 patients (`MRN-100001…`) with vitals, alarms, clinical notes, timeline,
+  and the clinical modules: **ventilator settings, lab results, fluid balance,
+  medication orders**
+- Staff assignments
+
+### Reseeding safely
+
+Run a reseed at any time (e.g. after adding patients through the UI):
 
 ```bash
-python -m app.scripts.seed_data
+make reseed
 ```
 
-### Seeded Data Includes:
-
-* Default roles (admin, doctor, nurse)
-* Admin user
-* Base hospital/unit structure
+> Do **not** run the seed script directly while the simulator is streaming —
+> it inserts vitals for live patients and will trip a foreign-key error during
+> the clear. `make reseed` handles this by stopping the simulator first.
 
 ---
 
-# 4. Default Login
+## 6. Vital simulator
 
-```json
-{
-  "user_id": "admin",
-  "password": "admin"
-}
-```
-
----
-
-# 5. Verifying Setup
-
-## Check containers
+State-based simulator that drifts each bed's vitals realistically and only
+raises alarms on threshold crossings (2 beds run "critical" by default).
 
 ```bash
-docker ps
+make sim-start
+# or directly:
+docker compose --profile simulator up -d vital_simulator
 ```
+
+It posts batched device events to `POST /api/v1/ingestion/device-events` every
+**5 seconds**; the backend persists them and broadcasts live updates over the
+per-unit WebSocket. Adjust cadence / critical beds via the `--interval` and
+`--critical-beds` flags in `docker-compose.yml`.
 
 ---
 
-## Check DB readiness
+## 7. Verifying the setup
 
 ```bash
-docker exec -it cortex_db pg_isready -U postgres -d cortex_icu
-```
+# Containers
+make ps
 
-Expected:
+# DB readiness (exec inside the db container — port isn't on the host)
+docker exec -it cortex_db pg_isready -U postgres -d cortex_icu   # -> accepting connections
 
-```text
-accepting connections
-```
-
----
-
-## Check tables
-
-```bash
+# Tables / seeded users
 docker exec -it cortex_db psql -U postgres -d cortex_icu -c "\dt"
+docker exec -it cortex_db psql -U postgres -d cortex_icu -c "SELECT email, role_id FROM users;"
+
+# Backend logs (expect alembic OK, seed OK, Uvicorn started)
+make logs
 ```
 
 ---
 
-## Check seeded data
+## 8. Using the application
 
-```bash
-docker exec -it cortex_db psql -U postgres -d cortex_icu -c "SELECT * FROM users;"
-```
+Open http://localhost:5173 and log in.
 
----
+- **Dashboard** – live ICU overview: stat cards, ICU-unit tabs, and patient
+  cards that auto-refresh every 5s. Critical patients pulse; click a card to
+  open the patient detail page.
+- **Patients** – paginated table (10/page) with MRN, name, age/gender, contact,
+  diagnosis, admitted date, status, and **Add / Edit / Delete** actions. MRNs
+  are auto-generated (`MRN-1000xx`).
+- **Patient Detail** – 7 tabs, all fed by `GET /patients/{id}/details`:
+  **Overview** (vital cards + Demographics + **live** trend chart + Ventilator /
+  Lab / Fluid panels), **Flowsheet** (hourly grid), **Devices**, **Medication**
+  (orders + active infusions), **Notes** (add/list), **Timeline**, **Reports**
+  (CSV download, daily & discharge summaries). Vital cards and the trend chart
+  update in real time over the WebSocket.
+- **Alerts** – active/critical alarms with acknowledge.
+- **Medication / Notes / Tasks / Handover** – operational modules.
 
-## Check backend logs
-
-```bash
-docker logs cortex_backend
-```
-
-Expected:
-
-* Alembic runs successfully
-* No errors
-* Uvicorn starts
-
----
-
-# 6. Running Seed Manually
-
-If needed:
-
-```bash
-docker compose exec backend bash -c "python -m app.scripts.seed_data"
-```
+A red **critical-alert banner** appears under the header when any critical
+alarm is active, with Acknowledge / View Alerts actions.
 
 ---
 
-# 7. Device Simulator
+## 9. Manual setup (without Docker)
 
-```bash
-docker compose exec backend bash -c "python -m app.scripts.device_simulator"
-```
-
-Simulates real-time vitals streaming.
-
----
-
-# 8. Manual Setup (Optional)
-
-## Database
+**Database**
 
 ```bash
 psql -U postgres -c "CREATE DATABASE cortex_icu;"
 ```
 
----
-
-## Backend
+**Backend**
 
 ```bash
 cd backend
-python -m venv .venv
-source .venv/bin/activate
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python -m alembic upgrade head
-uvicorn app.main:app --reload
+alembic upgrade head
+python scripts/seed_dev_data.py
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
----
-
-## Frontend
+**Frontend**
 
 ```bash
 cd frontend
 npm install
-npm run dev
+npm run dev -- --host 0.0.0.0
+```
+
+**Simulator** (optional, against a host backend)
+
+```bash
+cd backend
+python scripts/simulate_live_vitals.py --api-base-url http://localhost:8000 --interval 5
 ```
 
 ---
 
-# 9. Environment Variables
+## 10. Environment variables
+
+**Backend** — `backend/.env`:
+
+| Variable                      | Description                                         |
+| ----------------------------- | --------------------------------------------------- |
+| `DATABASE_URL`                | `postgresql://postgres:postgres@db:5432/cortex_icu` |
+| `SECRET_KEY`                  | JWT signing key                                     |
+| `ALGORITHM`                   | JWT algorithm (e.g. `HS256`)                        |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Access-token lifespan                               |
+| `BACKEND_CORS_ORIGINS`        | Allowed CORS origins                                |
+| `ALLOWED_HOSTS`               | Allowed hosts                                       |
+
+> Inside Docker the DB host **must** be `db` (the service name), not `localhost`.
+
+**Frontend** — `frontend/.env`:
 
 ```env
-DATABASE_URL=postgresql://postgres:postgres@db:5432/cortex_icu
-SECRET_KEY=CHANGE_ME
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-REFRESH_TOKEN_EXPIRE_MINUTES=43200
+VITE_API_BASE_URL=http://localhost:8000/api/v1
 ```
+
+Axios uses this base URL; API paths are written **without** repeating `/api/v1`
+(e.g. `/auth/login`, `/patients`, `/dashboard/overview`).
 
 ---
 
-# 10. Common Issues & Fixes
+## 11. Common issues & fixes
 
-## Port 5432 already in use
+**`Network cortex-dhs_default ... resource is still in use`**
+The simulator container outlived `docker compose down`. Use `make down`
+(it adds `--remove-orphans`), or:
 
 ```bash
-sudo systemctl stop postgresql
+docker rm -f cortex_vital_simulator && docker compose down --remove-orphans
 ```
 
----
-
-## DB not initializing correctly
+**Port already in use (`8000` / `5173`)**
 
 ```bash
-docker compose down -v
-docker compose up --build
+lsof -ti :8000 | xargs kill -9      # repeat per port as needed
 ```
 
----
+The DB port isn't published by default, so host `5432` should be free.
 
-## Tables not created
+**Login is slow / hangs**
+Resolved: the DB connection pool is sized up and device ingestion runs off the
+event loop (threadpool). If it recurs, check the simulator isn't flooding a
+single-worker backend and that the pool isn't exhausted.
 
-* Check Alembic logs
-* Ensure `alembic upgrade head` runs
+**Reseed fails with a foreign-key error**
+You ran the seed while the simulator was live. Use `make reseed`.
 
----
+**Login returns 401 / "patient not found"**
+Ensure the seed ran (`make logs`), then reseed (`make reseed`). IDs restart at 1
+after a clean reseed.
 
-## Login returns 401
-
-* Ensure seed script ran
-* Verify user exists:
-
-```bash
-docker exec -it cortex_db psql -U postgres -d cortex_icu -c "SELECT * FROM users;"
-```
-
----
-
-## Backend cannot connect to DB
-
-* Ensure using `db` as host, not `localhost`
+**Backend can't reach DB**
+Use `db` as the host (Docker network), not `localhost`.
 
 ---
 
-# 11. Important Notes
+## 12. Production considerations
 
-* Use `docker compose` (not `docker-compose`)
-* Container-to-container communication uses service name (`db`)
-* Avoid running destructive scripts (`reset_db.py`) at startup
-* Seed scripts should be idempotent
+- Terminate **TLS** at a reverse proxy (Nginx/Traefik) for frontend and API.
+- Manage **secrets** via Vault / Docker secrets, not `.env`.
+- Schedule **DB backups** and define retention.
+- Add **monitoring/logging** (Prometheus, Grafana, ELK).
+- Perform **HIPAA** risk assessment, pen-testing, and de-identification.
 
----
-
-# 12. Production Considerations
-
-* Use HTTPS (reverse proxy like Nginx)
-* Secure secrets (Vault / Docker secrets)
-* Enable DB backups
-* Add monitoring (Prometheus/Grafana)
-* Implement audit + compliance (HIPAA)
-
----
-
-# 🎯 Summary
-
-You now have:
-
-* Fully containerized stack
-* Automated DB migration (Alembic)
-* Automated seed data
-* Real-time device simulation capability
-
-The Cortex ICU platform is ready for development and testing 🚀
+See [architecture.md](architecture.md) for design details.

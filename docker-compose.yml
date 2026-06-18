@@ -45,8 +45,8 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: cortex_icu
-    ports:
-      - "5432:5432"
+    # Port not exposed to host — backend reaches db via Docker internal network (db:5432).
+    # Expose "5433:5432" here only if you need direct psql access from the host.
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -87,7 +87,7 @@ services:
     command: >
       sh -c "
         sleep 10 &&
-        python scripts/simulate_live_vitals.py --api-base-url http://backend:8000 --beds B1 B2 B3 B4 B5 B6 B7 B8 B9 B10 S1 S2 S3 S4 S5 S6 S7 S8 N1 N2 N3 N4 N5 N6 N7 N8 --interval 2
+        python scripts/simulate_live_vitals.py --api-base-url http://backend:8000 --beds B1 B2 B3 B4 B5 B6 B7 B8 B9 B10 S1 S2 S3 S4 S5 S6 S7 S8 N1 N2 N3 N4 N5 N6 N7 N8 --interval 5
       "
     profiles:
       - simulator

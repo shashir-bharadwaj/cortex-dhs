@@ -20,7 +20,19 @@ class PatientRepository(ABC):
         pass
 
     @abstractmethod
-    def list(self) -> List[Patient]:
+    def list(
+        self,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> List[Patient]:
+        pass
+
+    @abstractmethod
+    def count(self) -> int:
+        pass
+
+    @abstractmethod
+    def delete(self, patient_id: int) -> bool:
         pass
 
     @abstractmethod

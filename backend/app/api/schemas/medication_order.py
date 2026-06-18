@@ -20,6 +20,21 @@ class MedicationOrderCreateRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+class ActiveInfusionResponse(BaseModel):
+    id: int
+    patient_id: int = Field(alias="patientId")
+    patient_name: Optional[str] = Field(default=None, alias="patientName")
+    bed_label: Optional[str] = Field(default=None, alias="bedLabel")
+    drug_name: str = Field(alias="drugName")
+    dose: Optional[str] = None
+    rate_ml_hr: Optional[float] = Field(default=None, alias="rateMlHr")
+    remaining_vol_ml: Optional[float] = Field(default=None, alias="remainingVolMl")
+    est_end_time: Optional[datetime] = Field(default=None, alias="estEndTime")
+    status: MedicationStatus
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+
 class MedicationOrderResponse(BaseModel):
     id: int
     patient_id: int = Field(alias="patientId")

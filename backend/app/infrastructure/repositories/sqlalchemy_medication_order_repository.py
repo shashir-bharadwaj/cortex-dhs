@@ -6,7 +6,9 @@ from app.domain.entities.medication_order import MedicationOrder
 from app.domain.enums.medication import MedicationOrderType, MedicationStatus
 from app.domain.repositories.medication_order_repository import MedicationOrderRepository
 from app.infrastructure.database.mappers.medication_order_mapper import MedicationOrderMapper
+from app.infrastructure.database.models.bed import BedMasterModel
 from app.infrastructure.database.models.medication_order import MedicationOrderModel
+from app.infrastructure.database.models.patient import PatientModel
 
 
 class SQLAlchemyMedicationOrderRepository(MedicationOrderRepository):
@@ -45,6 +47,30 @@ class SQLAlchemyMedicationOrderRepository(MedicationOrderRepository):
             .all()
         )
         return MedicationOrderMapper.to_domain_list(models)
+
+    def list_all_active_infusions(self) -> List[MedicationOrder]:
+        rows = (
+            self.db.query(
+                MedicationOrderModel,
+                PatientModel.name.label("patient_name"),
+                BedMasterModel.bed_id.label("bed_label"),
+            )
+            .join(PatientModel, MedicationOrderModel.patient_id == PatientModel.id)
+            .outerjoin(BedMasterModel, PatientModel.bed_id == BedMasterModel.id)
+            .filter(
+                MedicationOrderModel.order_type == MedicationOrderType.INFUSION.value,
+                MedicationOrderModel.status == MedicationStatus.RUNNING.value,
+            )
+            .order_by(MedicationOrderModel.created_at.desc())
+            .all()
+        )
+        orders = []
+        for model, patient_name, bed_label in rows:
+            order = MedicationOrderMapper.to_domain(model)
+            order.patient_name = patient_name
+            order.bed_label = bed_label or ""
+            orders.append(order)
+        return orders
 
     def by_id(self, order_id: int) -> Optional[MedicationOrder]:
         model = (

@@ -5,11 +5,15 @@ from fastapi import APIRouter, Depends, status
 from app.api.providers.auth import AuthProvider
 from app.api.providers.medication_order import MedicationOrderProvider
 from app.api.schemas.medication_order import (
+    ActiveInfusionResponse,
     MedicationOrderCreateRequest,
     MedicationOrderResponse,
 )
 from app.application.medication.use_cases.create_medication_order import (
     CreateMedicationOrderUseCase,
+)
+from app.application.medication.use_cases.list_active_infusions import (
+    ListActiveInfusionsUseCase,
 )
 from app.application.medication.use_cases.list_medication_orders import (
     ListMedicationOrdersUseCase,
@@ -17,7 +21,8 @@ from app.application.medication.use_cases.list_medication_orders import (
 from app.core.errors.docs import STANDARD_ERROR_RESPONSES
 from app.domain.enums.permission import PermissionAction, PermissionModule
 
-router = APIRouter(prefix="/patients", tags=["Medication Orders"])
+patients_router = APIRouter(prefix="/patients", tags=["Medication Orders"])
+router = APIRouter(prefix="/medications", tags=["Medication Orders"])
 
 
 def patient_permission(action: PermissionAction):
@@ -26,7 +31,24 @@ def patient_permission(action: PermissionAction):
     )
 
 
-@router.post(
+@router.get(
+    "/active-infusions",
+    response_model=List[ActiveInfusionResponse],
+    status_code=status.HTTP_200_OK,
+    responses=STANDARD_ERROR_RESPONSES,
+)
+def list_active_infusions(
+    current_user=patient_permission(PermissionAction.VIEW),
+    use_case: ListActiveInfusionsUseCase = Depends(
+        MedicationOrderProvider.get_list_active_infusions_use_case
+    ),
+) -> List[ActiveInfusionResponse]:
+    """Return all running infusions across all patients."""
+    orders = use_case.execute()
+    return [ActiveInfusionResponse.model_validate(o) for o in orders]
+
+
+@patients_router.post(
     "/{patient_id}/medications",
     response_model=MedicationOrderResponse,
     status_code=status.HTTP_201_CREATED,
@@ -58,7 +80,7 @@ def create_medication_order(
     return MedicationOrderResponse.model_validate(order)
 
 
-@router.get(
+@patients_router.get(
     "/{patient_id}/medications",
     response_model=List[MedicationOrderResponse],
     status_code=status.HTTP_200_OK,

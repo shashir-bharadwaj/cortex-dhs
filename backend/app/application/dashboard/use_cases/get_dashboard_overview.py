@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.core.errors.exceptions import ResourceNotFoundError
 from app.domain.entities.alarm import Alarm
@@ -105,7 +105,7 @@ class GetDashboardOverviewUseCase:
             "summary": summary,
             "patientCards": patient_cards,
             "alarms": alarms,
-            "generatedAt": datetime.utcnow(),
+            "generatedAt": datetime.now(timezone.utc),
         }
 
     def _build_alarm_maps(
@@ -170,6 +170,7 @@ class GetDashboardOverviewUseCase:
                 patient_id=patient.id,
                 alarm_count_map=alarm_count_map,
                 critical_alarm_map=critical_alarm_map,
+                vitals=latest_vitals.get(patient.id),
             )
 
             if status == "CRITICAL":
@@ -237,20 +238,87 @@ class GetDashboardOverviewUseCase:
             "hasCriticalAlarm": False,
         }
 
+    # ------------------------------------------------------------------
+    # Vital threshold helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _hr_status(v: float) -> str:
+        if v < 50 or v > 120:
+            return "CRITICAL"
+        if v < 60 or v > 100:
+            return "WARNING"
+        return "NORMAL"
+
+    @staticmethod
+    def _spo2_status(v: float) -> str:
+        if v < 90:
+            return "CRITICAL"
+        if v < 95:
+            return "WARNING"
+        return "NORMAL"
+
+    @staticmethod
+    def _bp_status(sys_val: float) -> str:
+        if sys_val < 80 or sys_val > 180:
+            return "CRITICAL"
+        if sys_val < 90 or sys_val > 159:
+            return "WARNING"
+        return "NORMAL"
+
+    @staticmethod
+    def _rr_status(v: float) -> str:
+        if v < 10 or v > 25:
+            return "CRITICAL"
+        if v < 12 or v > 20:
+            return "WARNING"
+        return "NORMAL"
+
+    @staticmethod
+    def _temp_status(v: float) -> str:
+        if v < 96 or v > 103:
+            return "CRITICAL"
+        if v < 97 or v > 100.4:
+            return "WARNING"
+        return "NORMAL"
+
+    def _vitals_overall_status(self, vitals: LatestVital) -> str:
+        """Return the worst vital status across all measured parameters."""
+        statuses = []
+        if vitals.hr is not None:
+            statuses.append(self._hr_status(float(vitals.hr)))
+        if vitals.spo2 is not None:
+            statuses.append(self._spo2_status(float(vitals.spo2)))
+        if vitals.bp_sys is not None:
+            statuses.append(self._bp_status(float(vitals.bp_sys)))
+        if vitals.rr is not None:
+            statuses.append(self._rr_status(float(vitals.rr)))
+        if vitals.temp is not None:
+            statuses.append(self._temp_status(float(vitals.temp)))
+
+        if "CRITICAL" in statuses:
+            return "CRITICAL"
+        if "WARNING" in statuses:
+            return "WARNING"
+        return "NORMAL"
+
     def _patient_status(
         self,
         patient_id: int,
         alarm_count_map: dict[int, int],
         critical_alarm_map: dict[int, bool],
+        vitals: "LatestVital | None" = None,
     ) -> str:
         """
         Determine dashboard status for a patient card.
+        Vitals-based status takes priority over alarm-based when more severe.
         """
+        vital_status = self._vitals_overall_status(vitals) if vitals else "NORMAL"
 
-        if critical_alarm_map.get(patient_id):
+        if vital_status == "CRITICAL" or critical_alarm_map.get(patient_id):
             return "CRITICAL"
 
-        if alarm_count_map.get(patient_id):
+        if vital_status == "WARNING" or alarm_count_map.get(patient_id):
             return "WARNING"
 
         return "NORMAL"
@@ -260,41 +328,48 @@ class GetDashboardOverviewUseCase:
         vitals: LatestVital | None,
     ) -> dict | None:
         """
-        Convert latest vitals snapshot into dashboard response format.
+        Convert latest vitals snapshot into dashboard response format
+        with threshold-based status for each parameter.
         """
 
         if not vitals:
             return None
 
+        bp_status = (
+            self._bp_status(float(vitals.bp_sys))
+            if vitals.bp_sys is not None
+            else "NORMAL"
+        )
+
         return {
             "hr": {
                 "value": vitals.hr,
                 "unit": "bpm",
-                "status": "NORMAL",
+                "status": self._hr_status(float(vitals.hr)) if vitals.hr is not None else "NORMAL",
                 "recordedAt": vitals.recorded_at,
             },
             "spo2": {
                 "value": vitals.spo2,
                 "unit": "%",
-                "status": "NORMAL",
+                "status": self._spo2_status(float(vitals.spo2)) if vitals.spo2 is not None else "NORMAL",
                 "recordedAt": vitals.recorded_at,
             },
             "bp": {
-                "value": f"{vitals.bp_sys}/{vitals.bp_dia}",
+                "value": f"{vitals.bp_sys}/{vitals.bp_dia}" if vitals.bp_sys else None,
                 "unit": "mmHg",
-                "status": "NORMAL",
+                "status": bp_status,
                 "recordedAt": vitals.recorded_at,
             },
             "rr": {
                 "value": vitals.rr,
                 "unit": "/min",
-                "status": "NORMAL",
+                "status": self._rr_status(float(vitals.rr)) if vitals.rr is not None else "NORMAL",
                 "recordedAt": vitals.recorded_at,
             },
             "temp": {
                 "value": vitals.temp,
                 "unit": "F",
-                "status": "NORMAL",
+                "status": self._temp_status(float(vitals.temp)) if vitals.temp is not None else "NORMAL",
                 "recordedAt": vitals.recorded_at,
             },
         }

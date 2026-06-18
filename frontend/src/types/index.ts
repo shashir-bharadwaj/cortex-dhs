@@ -8,3 +8,6 @@ export type { User, CreateUserPayload, RoleOption } from "./user";
 export type { AISuggestion } from "./ai";
 export type { Alert } from "./alert";
 export type { Vital } from "./vital";
+export type { NurseTask, NurseTaskSummary, CreateNurseTaskPayload, TaskStatus } from "./nurseTask";
+export type { ActiveInfusion } from "./activeInfusion";
+export type { ShiftHandoverSummary, HandoverPatientCard, HandoverVitals, HandoverNote, ShiftInfo } from "./handover";

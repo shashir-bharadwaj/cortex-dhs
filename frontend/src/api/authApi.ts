@@ -1,25 +1,24 @@
 import api from "./client";
 
-export interface LoginResponse {
-  access_token: string;
-  refresh_token?: string;
-  token_type: string;
-  mfa_required?: boolean;
+export interface AuthUser {
+  id: number;
+  userId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  roleId: number;
+  hospitalId: number;
+  unitId: number;
+  shift: string;
+  isActive: boolean;
 }
 
-export async function loginApi(
-  username: string,
-  password: string
-): Promise<LoginResponse> {
-  const formData = new URLSearchParams();
-  formData.append("username", username);
-  formData.append("password", password);
+export interface LoginResponse {
+  token: string;
+  user: AuthUser;
+}
 
-  const response = await api.post("api/v1/auth/login", formData, {
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-  });
-
+export async function loginApi(email: string, password: string): Promise<LoginResponse> {
+  const response = await api.post("/auth/login", { email, password });
   return response.data;
 }

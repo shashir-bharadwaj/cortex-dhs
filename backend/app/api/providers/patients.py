@@ -4,6 +4,9 @@ from app.api.providers.repositories import RepositoryProvider
 from app.application.patients.use_cases.create_patient import (
     CreatePatientUseCase,
 )
+from app.application.patients.use_cases.delete_patient import (
+    DeletePatientUseCase,
+)
 from app.application.patients.use_cases.discharge_patient import (
     DischargePatientUseCase,
 )
@@ -95,6 +98,16 @@ class PatientProvider:
         ),
     ) -> DischargePatientUseCase:
         return DischargePatientUseCase(
+            patient_repository=patient_repository,
+        )
+
+    @staticmethod
+    def get_delete_patient_use_case(
+        patient_repository: PatientRepository = Depends(
+            RepositoryProvider.get_patient_repository
+        ),
+    ) -> DeletePatientUseCase:
+        return DeletePatientUseCase(
             patient_repository=patient_repository,
         )
 

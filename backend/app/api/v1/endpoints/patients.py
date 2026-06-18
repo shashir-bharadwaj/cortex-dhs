@@ -3,7 +3,7 @@ import io
 from datetime import date
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from fastapi.responses import StreamingResponse
 
 from app.api.providers.alarms import AlarmProvider
@@ -23,6 +23,9 @@ from app.application.alarms.use_cases.get_patient_alarms import (
 )
 from app.application.patients.use_cases.create_patient import (
     CreatePatientUseCase,
+)
+from app.application.patients.use_cases.delete_patient import (
+    DeletePatientUseCase,
 )
 from app.application.patients.use_cases.discharge_patient import (
     DischargePatientUseCase,
@@ -117,6 +120,8 @@ def create_patient(
     Create a new patient admission record.
     """
     patient = Patient(
+        mrn=payload.mrn,
+        cr_number=payload.cr_number,
         name=payload.name,
         age=payload.age,
         gender=payload.gender,
@@ -127,7 +132,9 @@ def create_patient(
         blood_group=payload.blood_group,
         doctor=payload.doctor,
         admission_time=payload.admission_time,
-        hospital_id=payload.hospital_id,
+        # Fall back to the creating user's hospital (column is NOT NULL and
+        # the Add Patient form does not collect it).
+        hospital_id=payload.hospital_id or _current_user.hospital_id,
         history=payload.history,
         comorbidities=payload.comorbidities,
     )
@@ -144,15 +151,24 @@ def create_patient(
     responses=STANDARD_ERROR_RESPONSES,
 )
 def list_patients(
+    response: Response,
+    limit: int = Query(default=25, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
     _current_user=patient_permission(PermissionAction.VIEW),
     use_case: ListPatientsUseCase = Depends(
         PatientProvider.get_list_patients_use_case
     ),
 ) -> List[PatientResponse]:
     """
-    List all patients.
+    List patients with limit/offset pagination.
+
+    The total record count is returned in the `X-Total-Count` header so the
+    client can render numbered pagination.
     """
-    patients = use_case.execute()
+    patients = use_case.execute(limit=limit, offset=offset)
+
+    response.headers["X-Total-Count"] = str(use_case.count())
+    response.headers["Access-Control-Expose-Headers"] = "X-Total-Count"
 
     return [
         to_patient_response(patient)
@@ -262,6 +278,26 @@ def discharge_patient(
     patient = use_case.execute(patient_id)
 
     return to_patient_response(patient)
+
+
+@router.delete(
+    "/{patient_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=STANDARD_ERROR_RESPONSES,
+)
+def delete_patient(
+    patient_id: int,
+    _current_user=patient_permission(PermissionAction.MODIFY),
+    use_case: DeletePatientUseCase = Depends(
+        PatientProvider.get_delete_patient_use_case
+    ),
+) -> Response:
+    """
+    Permanently delete a patient and all dependent clinical records.
+    """
+    use_case.execute(patient_id)
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get(
