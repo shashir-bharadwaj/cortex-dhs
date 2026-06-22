@@ -19,6 +19,9 @@ import {
   CheckCircleOutlined,
   ThunderboltOutlined,
   UserOutlined,
+  ExperimentOutlined,
+  DashboardOutlined,
+  FireOutlined,
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { getDashboardUnits, getDashboardOverview } from "../../api/dashboardApi";
@@ -36,7 +39,7 @@ const STATUS_COLOR: Record<string, string> = {
 // Minimal ECG waveform icon
 function EcgIcon({ color = "#bbb" }: { color?: string }) {
   return (
-    <svg width="22" height="16" viewBox="0 0 44 20" fill="none">
+    <svg width="22" height="10" viewBox="0 0 44 20" fill="none">
       <polyline
         points="0,10 8,10 11,2 14,18 17,4 20,16 23,10 44,10"
         stroke={color}
@@ -52,7 +55,7 @@ function EcgIcon({ color = "#bbb" }: { color?: string }) {
 // Simple decorative sparkline
 function TrendLine({ color = "#e0e0e0" }: { color?: string }) {
   return (
-    <svg width="100%" height="18" viewBox="0 0 80 18" preserveAspectRatio="none">
+    <svg width="100%" height="10" viewBox="0 0 80 18" preserveAspectRatio="none">
       <polyline
         points="0,12 12,9 22,11 34,6 44,10 56,8 68,11 80,9"
         stroke={color}
@@ -86,13 +89,31 @@ function VitalBox({
   const trendColor = isCritical ? "#ffb3b3" : isWarning ? "#ffd591" : "#d9d9d9";
 
   return (
-    <div style={{ flex: 1, padding: "8px 10px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
-        <span style={{ color: isCritical ? "#ff4d4f" : "#aaa", fontSize: 12 }}>{icon}</span>
-        <span style={{ fontSize: 10, color: "#999", fontWeight: 500 }}>{label}</span>
-        <span style={{ fontSize: 9, color: "#bbb", marginLeft: 2 }}>{unit}</span>
+    <div style={{
+      flex: 1,
+      background: "#eef1f4",
+      borderRadius: 8,
+      padding: "8px 12px",
+      minHeight: 58,
+    }}>
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        marginBottom: 6,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <span style={{ color: isCritical ? "#ff4d4f" : "#aaa", fontSize: 12 }}>
+            {icon}
+          </span>
+
+          <span style={{ fontSize: 9, color: "#0f172a", fontWeight: 500 }}>
+            {label}
+          </span>
+        </div>
+        <span style={{ fontSize: 9, color: "#0f172a" }}>{unit}</span>
       </div>
-      <div style={{ fontSize: 24, fontWeight: 700, color: valueColor, lineHeight: 1.1 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", lineHeight: 1 }}>
         {reading?.value ?? "—"}
       </div>
       {showTrend && <TrendLine color={trendColor} />}
@@ -117,8 +138,8 @@ function PatientCardItem({
   const cardClassName = isCritical
     ? "patient-card-critical"
     : isWarning
-    ? "patient-card-warning"
-    : "patient-card-normal";
+      ? "patient-card-warning"
+      : "patient-card-normal";
 
   return (
     <div
@@ -126,7 +147,7 @@ function PatientCardItem({
       onClick={isClickable ? onClick : undefined}
       style={{
         borderRadius: 10,
-        padding: "12px 14px",
+        padding: "10px 12px",
         cursor: isClickable ? "pointer" : "default",
         transition: "transform 0.15s",
         height: "100%",
@@ -208,10 +229,10 @@ function PatientCardItem({
         <>
           {/* Patient name + demographics */}
           <div style={{ marginBottom: 6 }}>
-            <div style={{ fontWeight: 700, fontSize: 15, color: "#1a1a2e", lineHeight: 1.2 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: "#1a1a2e", lineHeight: 1.2 }}>
               {patient.name}
             </div>
-            <div style={{ fontSize: 12, color: "#777", marginTop: 2 }}>
+            <div style={{ fontSize: 11, color: "#777", marginTop: 2 }}>
               {[
                 patient.age ? `${patient.age}y` : null,
                 patient.gender ? (patient.gender === "MALE" ? "M" : patient.gender === "FEMALE" ? "F" : patient.gender) : null,
@@ -224,7 +245,7 @@ function PatientCardItem({
 
           {patient.doctor && (
             <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 10, fontSize: 11, color: "#888" }}>
-              <UserOutlined style={{ fontSize: 11 }} />
+              <UserOutlined style={{ fontSize: 10 }} />
               {patient.doctor}
             </div>
           )}
@@ -232,14 +253,14 @@ function PatientCardItem({
           {/* Vitals grid */}
           <div
             style={{
-              border: "1px solid #f0f0f0",
-              borderRadius: 8,
-              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
               marginBottom: 8,
             }}
           >
             {/* Row 1: HR | SPO2 */}
-            <div style={{ display: "flex", borderBottom: "1px solid #f0f0f0" }}>
+            <div style={{ display: "flex", gap: 10 }}>
               <VitalBox
                 icon={<HeartOutlined />}
                 label="HR"
@@ -249,7 +270,7 @@ function PatientCardItem({
               />
               <div style={{ width: 1, background: "#f0f0f0" }} />
               <VitalBox
-                icon="💧"
+                icon={<ExperimentOutlined />}
                 label="SPO2"
                 unit="%"
                 reading={card.vitals?.spo2}
@@ -258,16 +279,16 @@ function PatientCardItem({
             </div>
 
             {/* Row 2: BP | RR */}
-            <div style={{ display: "flex", borderBottom: "1px solid #f0f0f0" }}>
+            <div style={{ display: "flex", gap: 10 }}>
               <VitalBox
-                icon="🔴"
+                icon={<DashboardOutlined />}
                 label="BP"
                 unit="mmHg"
                 reading={card.vitals?.bp}
               />
               <div style={{ width: 1, background: "#f0f0f0" }} />
               <VitalBox
-                icon="↑"
+                icon={<DashboardOutlined />}
                 label="RR"
                 unit="/min"
                 reading={card.vitals?.rr}
@@ -277,26 +298,26 @@ function PatientCardItem({
             {/* Row 3: TEMP full width */}
             <div
               style={{
-                display: "flex",
-                alignItems: "center",
-                padding: "6px 10px",
-                justifyContent: "space-between",
+                background: "#eef1f4",
+                borderRadius: 8,
+                padding: "8px 12px",
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <span style={{ fontSize: 12 }}>🌡</span>
+                <FireOutlined style={{ fontSize: 12, color: "#ff7a45" }}
+                />
                 <span style={{ fontSize: 10, color: "#999", fontWeight: 500 }}>TEMP</span>
               </div>
               <span
                 style={{
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: 700,
                   color:
                     card.vitals?.temp?.status?.toLowerCase() === "critical"
                       ? "#ff4d4f"
                       : card.vitals?.temp?.status?.toLowerCase() === "warning"
-                      ? "#fa8c16"
-                      : "#1a1a2e",
+                        ? "#fa8c16"
+                        : "#1a1a2e",
                 }}
               >
                 {card.vitals?.temp?.value != null
@@ -414,13 +435,7 @@ const DashboardPage: React.FC = () => {
       color: "#fff7e6",
       border: "#fa8c16",
     },
-    {
-      title: "Active Alarms",
-      value: summary?.activeAlarms ?? "—",
-      icon: <ThunderboltOutlined style={{ fontSize: 22, color: "#722ed1" }} />,
-      color: "#f9f0ff",
-      border: "#722ed1",
-    },
+
   ];
 
   const tabItems = units.map((u) => ({
@@ -432,7 +447,7 @@ const DashboardPage: React.FC = () => {
     <div style={{ padding: "24px 28px", background: "#f5f6fa", minHeight: "100vh" }}>
       <div style={{ marginBottom: 20 }}>
         <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#1a1a2e" }}>
-          ICU Dashboard
+          ICU OverView
         </h2>
         <span style={{ color: "#888", fontSize: 13 }}>
           Real-time patient monitoring · auto-refreshes every {POLL_INTERVAL_MS / 1000}s
@@ -442,7 +457,7 @@ const DashboardPage: React.FC = () => {
       {/* Stats Row */}
       <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
         {statsCards.map((s) => (
-          <Col key={s.title} xs={12} sm={8} md={8} lg={4} xl={4}>
+          <Col key={s.title} xs={24} sm={12} md={6} lg={6} xl={6}>
             <Card
               style={{
                 borderRadius: 10,
@@ -492,7 +507,7 @@ const DashboardPage: React.FC = () => {
             />
           </div>
 
-          <div style={{ padding: "20px 24px" }}>
+          <div style={{ padding: "20px 20px" }}>
             {loadingOverview ? (
               <div style={{ textAlign: "center", padding: "60px 0" }}>
                 <Spin size="large" />
@@ -500,7 +515,7 @@ const DashboardPage: React.FC = () => {
             ) : overview?.patientCards.length === 0 ? (
               <Empty description="No beds in this unit" />
             ) : (
-              <Row gutter={[16, 16]}>
+              <Row gutter={[12, 12]}>
                 {overview?.patientCards.map((card) => (
                   <Col key={card.bed.id} xs={24} sm={12} md={12} lg={8} xl={6}>
                     <PatientCardItem

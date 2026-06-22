@@ -94,7 +94,7 @@ const VitalCard: React.FC<{
         {label}
       </span>
     </div>
-    <div style={{ fontSize: 28, fontWeight: 700, color: "#1a1a2e", marginTop: 8 }}>
+    <div style={{ fontSize: 19, fontWeight: 700, color: "#1a1a2e", marginTop: 8 }}>
       {value}
     </div>
     <div style={{ fontSize: 12, color: "#9a9aae" }}>{unit}</div>
@@ -114,7 +114,7 @@ const LabeledRow: React.FC<{ label: string; value: React.ReactNode }> = ({
       fontSize: 13,
     }}
   >
-    <span style={{ color: "#8a8a9e" }}>{label}</span>
+    <span style={{ color: "#8a8a9e", fontSize: 12 }}>{label}</span>
     <span style={{ color: "#1a1a2e", fontWeight: 600 }}>{value}</span>
   </div>
 );
@@ -137,7 +137,7 @@ const SectionCard: React.FC<{
         marginBottom: 6,
       }}
     >
-      <Text strong style={{ fontSize: 15 }}>
+      <Text strong style={{ fontSize: 13 }}>
         {title}
       </Text>
       {extra}
@@ -1124,51 +1124,20 @@ const PatientDetailPage: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      <Button onClick={() => navigate(-1)} style={{ marginBottom: 16 }}>
-        ← Back
-      </Button>
-
       {/* Patient header */}
-      <Card style={{ marginBottom: 16 }}>
-        <Row justify="space-between" align="middle">
-          <Col>
-            <Title level={4} style={{ margin: 0 }}>
-              {patient.name}
-            </Title>
-            <Text type="secondary">
-              {patient.age ? `${patient.age}y` : ""}
-              {patient.gender ? ` · ${patient.gender}` : ""}
-              {patient.diagnosis ? ` · ${patient.diagnosis}` : ""}
-              {patient.mrn ? ` · MRN: ${patient.mrn}` : ""}
-            </Text>
-            {staff.length > 0 && (
-              <div style={{ marginTop: 4 }}>
-                {staff.map((s, i) => (
-                  <Tag key={i} color="blue">
-                    {s.staffName} ({s.staffRole ?? s.assignmentType})
-                  </Tag>
-                ))}
-              </div>
-            )}
-          </Col>
-          <Col>
-            <Tag color="red" style={{ marginRight: 8 }}>
-              {liveAlarmCount ?? details.overview.activeAlarmCount} active alarms
-            </Tag>
-            <Tag color="blue" style={{ marginRight: 8 }}>
-              {details.overview.deviceCount} devices
-            </Tag>
-            <Tag
-              color={patient.status === "admitted" ? "green" : "default"}
-              style={{ fontSize: 14, padding: "4px 12px" }}
-            >
-              {patient.status?.toUpperCase()}
-            </Tag>
-          </Col>
-        </Row>
-      </Card>
+      <div style={{ marginBottom: 18 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
+          <Button onClick={() => navigate(-1)} style={{ width: 40, height: 40, borderRadius: 12, fontSize: 18 }}>
+            ←</Button>
+          <Title level={2} style={{ margin: 0, fontSize: 18, fontWeight: 700, letterSpacing: 1, color: "#0f172a" }}>{patient.name}</Title>
+          <span style={{ background: "#e8f2ff", color: "#0050b3", padding: "8px 18px", borderRadius: 6, fontWeight: 700, fontSize: 14 }}>{patient.bedId}</span></div>
+        <div style={{ display: "flex", alignItems: "center", gap: 22, fontSize: 12, color: "#0f172a" }}>
+          <span>{patient.age} yrs / {patient.gender}</span>{staff.length > 0 && <span>♙ {staff[0].staffName}</span>}
+          <span>Diagnosis: {patient.diagnosis}</span>
+          {/* <span style={{ color: "#008b8b", fontWeight: 700 }}>ⓘ More Info</span> */}
+        </div></div>
 
-      <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
+      <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} className="patient-tabs" />
     </div>
   );
 };

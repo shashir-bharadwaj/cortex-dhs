@@ -6,12 +6,12 @@
 
 .patient-card-critical {
   animation: criticalPulse 1.8s ease-out infinite !important;
-  border: 1.5px solid #ff4d4f !important;
+  border: 1px solid #ff4d4f !important;
   background: linear-gradient(135deg, #fff5f5 0%, #fff0f0 100%) !important;
 }
 
 .patient-card-warning {
-  border: 1.5px solid #fa8c16 !important;
+  border: 1px solid #fa8c16 !important;
   background: #fffbe6 !important;
 }
 

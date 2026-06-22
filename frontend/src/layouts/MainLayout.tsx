@@ -34,7 +34,7 @@ import "./MainLayout.css";
 
 const { Sider, Content, Header } = Layout;
 
-const SIDER_EXPANDED = 232;
+const SIDER_EXPANDED = 220;
 // Matches AntD's inline-collapsed menu width so icons don't clip.
 const SIDER_COLLAPSED = 80;
 
@@ -128,7 +128,7 @@ const MainLayout: React.FC = () => {
           style={{ background: hasCritical ? "#ff4d4f" : "#fa8c16" }}
           offset={[2, -4]}
         >
-          <AlertOutlined style={{ fontSize: 18 }} />
+          <AlertOutlined style={{ fontSize: 16 }} />
         </Badge>
       ) : (
         <AlertOutlined />
@@ -151,8 +151,8 @@ const MainLayout: React.FC = () => {
                 background: isAlertsActive
                   ? "rgba(0,0,0,0.28)"
                   : hasCritical
-                  ? "#ff4d4f"
-                  : "#fa8c16",
+                    ? "#ff4d4f"
+                    : "#fa8c16",
                 color: "#fff",
                 fontSize: 11,
                 fontWeight: 700,
@@ -237,19 +237,19 @@ const MainLayout: React.FC = () => {
             display: "flex",
             alignItems: "center",
             justifyContent: collapsed ? "center" : "space-between",
-            padding: collapsed ? "18px 0" : "18px 16px",
-            minHeight: 64,
+            padding: collapsed ? "12px 0" : "14px 18px",
+            minHeight: 56,
           }}
         >
           {!collapsed ? (
             <>
               <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                <EcgIcon size={22} color="#1a1a2e" />
+                <EcgIcon size={20} color="#1a1a2e" />
                 <span
                   style={{
                     color: "#1a1a2e",
                     fontWeight: 800,
-                    fontSize: 16,
+                    fontSize: 15,
                     letterSpacing: 0.5,
                     whiteSpace: "nowrap",
                   }}
@@ -375,151 +375,127 @@ const MainLayout: React.FC = () => {
         }}
       >
         {/* Top header */}
-        <Header
-          style={{
-            background: "#fff",
-            padding: "0 24px",
-            display: "flex",
-            alignItems: "center",
-            gap: 16,
-            borderBottom: "1px solid #ececf1",
-            position: "sticky",
-            top: 0,
-            zIndex: 99,
-            height: 60,
-            lineHeight: "normal",
-          }}
-        >
-          <Input
-            prefix={<SearchOutlined style={{ color: "#bbb" }} />}
-            placeholder="Search patient, bed…"
-            style={{
-              maxWidth: 360,
-              borderRadius: 22,
-              background: "#f5f6fa",
-              border: "none",
-            }}
-          />
+        <div style={{ position: "sticky", top: 0, zIndex: 99 }}>
+          <Header
+            style={{ background: "#fff", padding: "0 24px", display: "flex", alignItems: "center", gap: 16, borderBottom: "1px solid #ececf1", height: 60, lineHeight: "normal" }}>
+            <Input
+              prefix={<SearchOutlined style={{ color: "#bbb" }} />}
+              placeholder="Search patient, bed…"
+              style={{
+                maxWidth: 360,
+                borderRadius: 22,
+                background: "#f5f6fa",
+                border: "none",
+              }}
+            />
 
-          <div style={{ flex: 1 }} />
+            <div style={{ flex: 1 }} />
 
-          <Space size={20} align="center">
-            {/* Hospital selector pill */}
+            <Space size={20} align="center">
+              {/* Hospital selector pill */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  height: 38,
+                  lineHeight: 1,
+                  background: "#f4f0fe",
+                  border: "1px solid #e7defb",
+                  borderRadius: 19,
+                  padding: "0 16px",
+                  cursor: "pointer",
+                }}
+              >
+                <EcgIcon size={16} color={BRAND_PURPLE} />
+                <span
+                  style={{ color: BRAND_PURPLE, fontWeight: 600, fontSize: 13 }}
+                >
+                  City General Hospital
+                </span>
+                <DownOutlined style={{ color: BRAND_PURPLE, fontSize: 10 }} />
+              </div>
+
+              <Tooltip title="Active Alarms">
+                <Badge count={alarms.length} size="small" overflowCount={99}>
+                  <Button
+                    type="text"
+                    icon={<BellOutlined style={{ fontSize: 18 }} />}
+                    style={{ padding: "0 4px" }}
+                    onClick={() => navigate("/alerts")}
+                  />
+                </Badge>
+              </Tooltip>
+
+              <Dropdown
+                menu={{ items: userMenuItems }}
+                placement="bottomRight"
+                trigger={["click"]}
+              >
+                <Space style={{ cursor: "pointer" }}>
+                  <div style={{ lineHeight: 1.2, textAlign: "right" }}>
+                    <div
+                      style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}
+                    >
+                      {user?.shift ? "Nurse" : userDisplayName}
+                    </div>
+                    <div style={{ fontSize: 11, color: "#888" }}>
+                      City General Hospital
+                    </div>
+                  </div>
+                  <Avatar
+                    size={34}
+                    style={{ background: "#f0eaff", color: BRAND_PURPLE }}
+                    icon={<UserOutlined />}
+                  />
+                </Space>
+              </Dropdown>
+            </Space>
+          </Header>
+
+          {/* Critical alarm banner (below header, inside content area) */}
+          {firstCritical && (
             <div
               style={{
+                background: "#e60023",
+                color: "#fff",
+                padding: "5px 18px",
                 display: "flex",
                 alignItems: "center",
                 gap: 8,
-                height: 38,
-                lineHeight: 1,
-                background: "#f4f0fe",
-                border: "1px solid #e7defb",
-                borderRadius: 19,
-                padding: "0 16px",
-                cursor: "pointer",
+                fontSize: 12,
               }}
             >
-              <EcgIcon size={16} color={BRAND_PURPLE} />
-              <span
-                style={{ color: BRAND_PURPLE, fontWeight: 600, fontSize: 13 }}
+              <ExclamationCircleFilled style={{ fontSize: 9 }} />
+              <span style={{ fontWeight: 700, letterSpacing: 0.3 }}>
+                CRITICAL ALERT
+              </span>
+              <span>
+                {firstCritical.bedId} – {firstCritical.message}
+              </span>
+              {criticalAlarms.length > 1 && (
+                <span style={{ opacity: 0.85, fontWeight: 600 }}>
+                  +{criticalAlarms.length - 1} more
+                </span>
+              )}
+              <div style={{ flex: 1 }} />
+              <Button
+                size="small"
+                onClick={handleAcknowledge}
+                style={{ background: "rgba(255,255,255,0.18)", border: "1px solid rgba(255,255,255,0.5)", color: "#fff", fontWeight: 600, borderRadius: 5, height: 24, fontSize: 11 }}
               >
-                City General Hospital
-              </span>
-              <DownOutlined style={{ color: BRAND_PURPLE, fontSize: 10 }} />
+                Acknowledge
+              </Button>
+              <Button
+                size="small"
+                onClick={() => navigate("/alerts")}
+                style={{ background: "rgba(255,255,255,0.18)", border: "1px solid rgba(255,255,255,0.5)", color: "#fff", fontWeight: 600, borderRadius: 5, height: 24, fontSize: 11 }}
+              >
+                View Alerts
+              </Button>
             </div>
-
-            <Tooltip title="Active Alarms">
-              <Badge count={alarms.length} size="small" overflowCount={99}>
-                <Button
-                  type="text"
-                  icon={<BellOutlined style={{ fontSize: 18 }} />}
-                  style={{ padding: "0 4px" }}
-                  onClick={() => navigate("/alerts")}
-                />
-              </Badge>
-            </Tooltip>
-
-            <Dropdown
-              menu={{ items: userMenuItems }}
-              placement="bottomRight"
-              trigger={["click"]}
-            >
-              <Space style={{ cursor: "pointer" }}>
-                <div style={{ lineHeight: 1.2, textAlign: "right" }}>
-                  <div
-                    style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}
-                  >
-                    {user?.shift ? "Nurse" : userDisplayName}
-                  </div>
-                  <div style={{ fontSize: 11, color: "#888" }}>
-                    City General Hospital
-                  </div>
-                </div>
-                <Avatar
-                  size={34}
-                  style={{ background: "#f0eaff", color: BRAND_PURPLE }}
-                  icon={<UserOutlined />}
-                />
-              </Space>
-            </Dropdown>
-          </Space>
-        </Header>
-
-        {/* Critical alarm banner (below header, inside content area) */}
-        {firstCritical && (
-          <div
-            style={{
-              background: "#e60023",
-              color: "#fff",
-              padding: "10px 24px",
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              fontSize: 13.5,
-            }}
-          >
-            <ExclamationCircleFilled style={{ fontSize: 17 }} />
-            <span style={{ fontWeight: 700, letterSpacing: 0.3 }}>
-              CRITICAL ALERT
-            </span>
-            <span>
-              {firstCritical.bedId} – {firstCritical.message}
-            </span>
-            {criticalAlarms.length > 1 && (
-              <span style={{ opacity: 0.85, fontWeight: 600 }}>
-                +{criticalAlarms.length - 1} more
-              </span>
-            )}
-            <div style={{ flex: 1 }} />
-            <Button
-              size="small"
-              onClick={handleAcknowledge}
-              style={{
-                background: "rgba(255,255,255,0.18)",
-                border: "1px solid rgba(255,255,255,0.5)",
-                color: "#fff",
-                fontWeight: 600,
-                borderRadius: 6,
-              }}
-            >
-              Acknowledge
-            </Button>
-            <Button
-              size="small"
-              onClick={() => navigate("/alerts")}
-              style={{
-                background: "#fff",
-                border: "none",
-                color: "#e60023",
-                fontWeight: 600,
-                borderRadius: 6,
-              }}
-            >
-              View Alerts
-            </Button>
-          </div>
-        )}
-
+          )}
+        </div>
         <Content style={{ background: "#f5f6fa" }}>
           <Outlet />
         </Content>
