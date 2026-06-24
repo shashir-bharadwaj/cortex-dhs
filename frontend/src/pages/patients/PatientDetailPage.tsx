@@ -8,6 +8,7 @@ import {
   Empty,
   Input,
   Modal,
+  Progress,
   Row,
   Select,
   Spin,
@@ -28,6 +29,9 @@ import {
   DownloadOutlined,
   FileTextOutlined,
   PrinterOutlined,
+  CloseOutlined,
+  SaveOutlined,
+  EditOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 
@@ -38,7 +42,7 @@ import {
   getDailySummaryReport,
   getDischargeSummaryReport,
 } from "../../api/patientApi";
-import { createPatientNote } from "../../api/notesApi";
+import { createPatientNote, createPatientTimeline } from "../../api/notesApi";
 import { useLiveVitals } from "../../hooks/useLiveVitals";
 import type { LatestVital } from "../../types/patient";
 import type { Flowsheet, FlowsheetRow } from "../../types/flowsheet";
@@ -56,6 +60,9 @@ import type {
 } from "../../types/patientDetails";
 import type { Patient } from "../../types/patient";
 import "./PatientDetailPage.css";
+import PatientModal from "./PatientModal";
+import { Info } from "lucide-react";
+import axios from "axios";
 
 const { Title, Text } = Typography;
 
@@ -345,7 +352,7 @@ function OverviewTab({
               unit="°F"
             />
           </Col>
-          <Col xs={12} sm={8} md={6}>
+          <Col xs={24}>
             <VitalCard
               icon={<ThunderboltOutlined />}
               accent={BRAND_PURPLE}
@@ -593,87 +600,276 @@ function DevicesTab({ devices }: { devices: DeviceMaster[] }) {
 // ---------------------------------------------------------------------------
 
 const STATUS_COLOR: Record<string, string> = {
-  Running: "processing",
-  Pending: "warning",
-  Given: "success",
-  Completed: "default",
-  Cancelled: "error",
+  Running: "#d48806",
+  Pending: "#1677ff",
+  Given: "#008f3a",
+  Completed: "#555",
+  Cancelled: "#cf1322",
 };
 
 function MedicationTab({ medications }: { medications: MedicationOrder[] }) {
-  const infusions = medications.filter(
+  const [medicationList, setMedicationList] = useState<MedicationOrder[]>([]);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editData, setEditData] = useState<any>({});
+
+  useEffect(() => {
+    setMedicationList(medications);
+  }, [medications]);
+
+  const infusions = medicationList.filter(
     (m) => m.orderType === "Infusion" && m.status === "Running"
   );
 
+  const startEdit = (inf: MedicationOrder) => {
+    setEditingId(inf.id);
+    setEditData({
+      rateMlHr: inf.rateMlHr,
+      remainingVolMl: inf.remainingVolMl,
+      estEndTime: inf.estEndTime,
+    });
+  };
+
+  const saveInfusion = () => {
+    setMedicationList((prev) =>
+      prev.map((item) => {
+        if (item.id !== editingId) return item;
+
+        const remaining = Number(editData.remainingVolMl);
+        const end = Number(editData.estEndTime);
+
+        return {
+          ...item,
+          rateMlHr: Number(editData.rateMlHr),
+          remainingVolMl: remaining,
+          estEndTime: editData.estEndTime,
+          status: remaining === 0 && end === 0 ? "Given" : item.status,
+        };
+      })
+    );
+
+    setEditingId(null);
+  };
+
   const columns: ColumnsType<MedicationOrder> = [
-    { title: "Drug", dataIndex: "drugName", key: "drugName" },
     {
-      title: "Type",
-      dataIndex: "orderType",
-      key: "orderType",
-      render: (t: string) => <Tag>{t}</Tag>,
+      title: "DRUG NAME",
+      dataIndex: "drugName",
+      render: (v) => <Text strong>{v}</Text>,
     },
-    { title: "Dose", dataIndex: "dose", key: "dose", render: (v) => fmt(v) },
-    { title: "Route", dataIndex: "route", key: "route", render: (v) => fmt(v) },
     {
-      title: "Schedule",
+      title: "TYPE",
+      dataIndex: "orderType",
+      render: (t) => (
+        <Tag style={{ background: "#eef2f5", border: "none", fontSize: 12 }}>
+          {t}
+        </Tag>
+      ),
+    },
+    {
+      title: "DOSE / ROUTE",
+      render: (_, r) => (
+        <span>
+          {fmt(r.dose)} / {fmt(r.route)}
+        </span>
+      ),
+    },
+    {
+      title: "SCHEDULE",
       dataIndex: "schedule",
-      key: "schedule",
       render: (v) => fmt(v),
     },
     {
-      title: "Status",
+      title: "STATUS",
       dataIndex: "status",
-      key: "status",
-      render: (s: string) => (
-        <Tag color={STATUS_COLOR[s] ?? "default"}>{s}</Tag>
+      render: (s) => (
+        <span
+          style={{
+            color: STATUS_COLOR[s],
+            fontWeight: 600,
+            fontSize: 13,
+          }}
+        >
+          {s}
+        </span>
       ),
     },
   ];
 
   return (
     <div>
+      <Card
+        title="Medication Orders"
+        bordered={false}
+        style={{
+          borderRadius: 14,
+          marginBottom: 24,
+          overflow: "hidden",
+        }}
+        bodyStyle={{ padding: 0 }}
+      >
+        <Table
+          rowKey="id"
+          dataSource={medicationList}
+          columns={columns}
+          pagination={false}
+          size="middle"
+          className="medication-table"
+        />
+      </Card>
+
       {infusions.length > 0 && (
-        <SectionCard title="Active Infusions">
-          <Row gutter={[12, 12]}>
+        <Card
+          title="Active Infusions"
+          bordered={false}
+          style={{ width: 730, borderRadius: 14 }}
+        >
+          <Row gutter={[24, 16]}>
             {infusions.map((inf) => (
-              <Col xs={24} sm={12} md={8} key={inf.id}>
-                <Card size="small" style={{ background: "#f6f0ff" }}>
-                  <Text strong>{inf.drugName}</Text>
-                  <div style={{ fontSize: 12, marginTop: 6, color: "#555" }}>
-                    Rate: {fmt(inf.rateMlHr, " mL/hr")}
+              <Col xs={24} sm={12} key={inf.id}>
+                <Card style={{ borderRadius: 14 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <Text strong style={{ fontSize: 16 }}>
+                      {inf.drugName}
+                    </Text>
+
+                    <div>
+                      <Tag
+                        style={{
+                          background: "#fff3bf",
+                          color: "#ad6800",
+                          border: "none",
+                          borderRadius: 20,
+                          fontSize: 12,
+                        }}
+                      >
+                        ● Running
+                      </Tag>
+
+                      {editingId !== inf.id && (
+                        <Button
+                          type="text"
+                          icon={<EditOutlined />}
+                          onClick={() => startEdit(inf)}
+                        />
+                      )}
+                    </div>
                   </div>
-                  <div style={{ fontSize: 12, color: "#555" }}>
-                    Remaining: {fmt(inf.remainingVolMl, " mL")}
+
+                  <div style={{ marginTop: 18, fontSize: 14 }}>
+                    <InfusionRow
+                      label="Rate"
+                      editing={editingId === inf.id}
+                      value={editData.rateMlHr}
+                      display={`${inf.rateMlHr} ml/hr`}
+                      onChange={(v: any) =>
+                        setEditData({ ...editData, rateMlHr: v })
+                      }
+                    />
+
+                    <InfusionRow
+                      label="Remaining Vol"
+                      editing={editingId === inf.id}
+                      value={editData.remainingVolMl}
+                      display={`${inf.remainingVolMl} ml`}
+                      onChange={(v: any) =>
+                        setEditData({
+                          ...editData,
+                          remainingVolMl: v,
+                        })
+                      }
+                    />
+
+                    <InfusionRow
+                      label="Est. End Time"
+                      editing={editingId === inf.id}
+                      value={
+                        editData.estEndTime
+                          ? dayjs(editData.estEndTime).format("HH:mm")
+                          : ""
+                      }
+                      display={
+                        inf.estEndTime
+                          ? dayjs(inf.estEndTime).format("HH:mm")
+                          : "—"
+                      }
+                      onChange={(v: any) =>
+                        setEditData({
+                          ...editData,
+                          estEndTime: v,
+                        })
+                      }
+                    />
                   </div>
-                  <div style={{ fontSize: 12, color: "#555" }}>
-                    Ends:{" "}
-                    {inf.estEndTime
-                      ? dayjs(inf.estEndTime).format("HH:mm")
-                      : "—"}
-                  </div>
+
+                  <Progress
+                    percent={inf.remainingVolMl === 0 ? 100 : 60}
+                    showInfo={false}
+                  />
+
+                  {editingId === inf.id && (
+                    <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                      <Button
+                        size="small"
+                        icon={<SaveOutlined />}
+                        onClick={saveInfusion}
+                      >
+                        Save
+                      </Button>
+
+                      <Button
+                        size="small"
+                        icon={<CloseOutlined />}
+                        onClick={() => setEditingId(null)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  )}
                 </Card>
               </Col>
             ))}
           </Row>
-        </SectionCard>
-      )}
-
-      {medications.length === 0 ? (
-        <Empty description="No medication orders" />
-      ) : (
-        <Table<MedicationOrder>
-          rowKey="id"
-          dataSource={medications}
-          columns={columns}
-          pagination={false}
-          size="small"
-        />
+        </Card>
       )}
     </div>
   );
 }
 
+function InfusionRow({
+  label,
+  editing,
+  value,
+  display,
+  onChange,
+}: any) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        marginBottom: 10,
+      }}
+    >
+      <span>{label}</span>
+
+      {editing ? (
+        <Input
+          size="small"
+          style={{ width: 90 }}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      ) : (
+        <Text strong>{display}</Text>
+      )}
+    </div>
+  );
+}
 // ---------------------------------------------------------------------------
 // Notes tab
 // ---------------------------------------------------------------------------
@@ -780,39 +976,172 @@ function NotesTab({
 // ---------------------------------------------------------------------------
 
 const TIMELINE_COLOR: Record<string, string> = {
-  alarm: "red",
-  medication: "blue",
-  vital: "green",
-  note: "purple",
-  admission: "gray",
+  alarm: "#cf1322",
+  medication: "#1677ff",
+  vital: "#52c41a",
+  note: "#0057a8",
+  admission: "#555",
 };
 
-function TimelineTab({ events }: { events: TimelineEvent[] }) {
-  if (!events.length) return <Empty description="No timeline events" />;
-  const sorted = [...events].sort((a, b) => {
-    const ta = a.time ? new Date(a.time).getTime() : 0;
-    const tb = b.time ? new Date(b.time).getTime() : 0;
-    return tb - ta;
-  });
+function TimelineTab({ events, patientId }: { events: TimelineEvent[]; patientId: number }) {
+  const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
+  const [event, setEvent] = useState("");
+  const [type, setType] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setTimelineEvents(events);
+  }, [events]);
+
+  const addTimeline = async () => {
+    if (!event.trim() || !type.trim()) return;
+
+    try {
+      setSaving(true);
+
+      const response = await createPatientTimeline(patientId, {
+        event,
+        type,
+      }); 
+
+      setTimelineEvents((prev) => [response, ...prev]);
+      setEvent("");
+      setType("");
+    } catch (err) {
+      console.error("Add timeline event failed:", err);
+      message.error("Failed to add timeline event");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const sorted = [...timelineEvents].sort(
+    (a, b) =>
+      new Date(b.time ?? 0).getTime() -
+      new Date(a.time ?? 0).getTime()
+  );
+
   return (
-    <Timeline
-      style={{ marginTop: 12 }}
-      items={sorted.map((e) => ({
-        color: TIMELINE_COLOR[e.type?.toLowerCase()] ?? "blue",
-        children: (
-          <div>
-            <Text strong>{e.event}</Text>
-            <div style={{ fontSize: 12, color: "#999" }}>
-              {e.type} ·{" "}
-              {e.time ? dayjs(e.time).format("DD MMM YYYY, HH:mm") : "—"}
-            </div>
+    <div>
+      <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+        <Input
+          value={event}
+          placeholder="Event"
+          onChange={(e) => setEvent(e.target.value)}
+          style={{ height: 28, fontSize: 12 }}
+        />
+
+        <Input
+          value={type}
+          placeholder="Type"
+          onChange={(e) => setType(e.target.value)}
+          style={{ width: 120, height: 28, fontSize: 12 }}
+        />
+
+        <Button
+          type="primary"
+          loading={saving}
+          onClick={addTimeline}
+          style={{
+            width: 60,
+            height: 28,
+            fontSize: 12,
+            borderRadius: 5,
+            background: "#5b2be0",
+          }}
+        >
+          Add
+        </Button>
+      </div>
+
+      {sorted.map((item) => (
+        <div
+          key={item.id}
+          style={{ display: "flex", position: "relative" }}
+        >
+          <div
+            style={{
+              width: 22,
+              display: "flex",
+              justifyContent: "center",
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                bottom: 0,
+                width: 2,
+                background: "#d9e4ef",
+              }}
+            />
+
+            <div
+              style={{
+                width: 15,
+                height: 15,
+                marginTop: 7,
+                zIndex: 1,
+                borderRadius: "50%",
+                background: "#0057a8",
+              }}
+            />
           </div>
-        ),
-      }))}
-    />
+
+          <Card
+            style={{
+              flex: 1,
+              marginBottom: 6,
+              borderRadius: 8,
+            }}
+            bodyStyle={{ padding: "6px 10px" }}
+          >
+            <div
+              style={{
+                display: "flex",
+                gap: 6,
+                alignItems: "center",
+                marginBottom: 4,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 11,
+                  color: "#0057a8",
+                  fontWeight: 600,
+                }}
+              >
+                {item.time
+                  ? dayjs(item.time).format("HH:mm")
+                  : "--:--"}
+              </Text>
+
+              <Tag
+                style={{
+                  background:
+                    TIMELINE_COLOR[item.type?.toLowerCase()] ??
+                    "#0057a8",
+                  color: "#fff",
+                  border: "none",
+                  fontSize: 10,
+                  padding: "0 5px",
+                  lineHeight: "15px",
+                  margin: 0,
+                }}
+              >
+                {item.type?.toUpperCase()}
+              </Tag>
+            </div>
+
+            <Text strong style={{ fontSize: 12 }}>
+              {item.event}
+            </Text>
+          </Card>
+        </div>
+      ))}
+    </div>
   );
 }
-
 // ---------------------------------------------------------------------------
 // Reports tab
 // ---------------------------------------------------------------------------
@@ -966,6 +1295,7 @@ const PatientDetailPage: React.FC = () => {
   const [liveAlarmCount, setLiveAlarmCount] = useState<number | null>(null);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const trendIdRef = useRef(0);
+  const [open, setOpen] = useState(false);
 
   const patientId = id ? parseInt(id, 10) : NaN;
 
@@ -1113,7 +1443,7 @@ const PatientDetailPage: React.FC = () => {
     {
       key: "timeline",
       label: "Timeline",
-      children: <TimelineTab events={details.timeline ?? []} />,
+      children: <TimelineTab events={details.timeline ?? []} patientId={patientId} />,
     },
     {
       key: "reports",
@@ -1134,7 +1464,30 @@ const PatientDetailPage: React.FC = () => {
         <div style={{ display: "flex", alignItems: "center", gap: 22, fontSize: 12, color: "#0f172a" }}>
           <span>{patient.age} yrs / {patient.gender}</span>{staff.length > 0 && <span>♙ {staff[0].staffName}</span>}
           <span>Diagnosis: {patient.diagnosis}</span>
-          {/* <span style={{ color: "#008b8b", fontWeight: 700 }}>ⓘ More Info</span> */}
+          <div
+            onClick={() => setOpen(true)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              color: "#0d9488",
+              cursor: "pointer",
+              marginTop: "8px"
+            }}
+          >
+            <Info size={16} />
+            <span
+              style={{
+                fontSize: "14px",
+                fontWeight: 500
+              }}
+            >
+              More Info
+            </span>
+          </div>
+          {open && (
+            <PatientModal patient={patient} onClose={() => setOpen(false)} />
+          )}
         </div></div>
 
       <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} className="patient-tabs" />
