@@ -31,12 +31,13 @@ import { useAuth } from "../auth/AuthContext";
 import { getAlerts, acknowledgeAlert } from "../api/alertsApi";
 import { Alert } from "../types/alert";
 import "./MainLayout.css";
+import { Bed, Server, Settings, Users } from "lucide-react";
 
 const { Sider, Content, Header } = Layout;
 
-const SIDER_EXPANDED = 220;
+const SIDER_EXPANDED = 200;
 // Matches AntD's inline-collapsed menu width so icons don't clip.
-const SIDER_COLLAPSED = 80;
+const SIDER_COLLAPSED = 76;
 
 const BRAND_PURPLE = "#5b2be0";
 
@@ -115,9 +116,11 @@ const MainLayout: React.FC = () => {
   const hasCritical = alarms.some((a) => a.severity === "Critical");
   const isAlertsActive = location.pathname.startsWith("/alerts");
 
-  const menuItems = [
-    { key: "/dashboard", icon: <DashboardOutlined />, label: "Dashboard" },
-    { key: "/patients", icon: <UserOutlined />, label: "Patients" },
+  const userRole = (localStorage.getItem("role") || "").toLowerCase();
+
+  const navItems = [
+    { key: "/dashboard", icon: <DashboardOutlined />, label: "Dashboard", roles: ["nurse", "admin"] },
+    { key: "/patients", icon: <UserOutlined />, label: "Patients", roles: ["nurse"] },
     {
       key: "/alerts",
       icon: collapsed ? (
@@ -133,6 +136,7 @@ const MainLayout: React.FC = () => {
       ) : (
         <AlertOutlined />
       ),
+      roles: ["nurse"],
       label: (
         <span
           style={{
@@ -170,11 +174,18 @@ const MainLayout: React.FC = () => {
         </span>
       ),
     },
-    { key: "/medication", icon: <MedicineBoxOutlined />, label: "Medication" },
-    { key: "/notes", icon: <FileTextOutlined />, label: "Notes" },
-    { key: "/tasks", icon: <CheckSquareOutlined />, label: "Tasks" },
-    { key: "/handover", icon: <SwapOutlined />, label: "Handover" },
+    { key: "/medication", icon: <MedicineBoxOutlined />, label: "Medication", roles: ["nurse"] },
+    { key: "/notes", icon: <FileTextOutlined />, label: "Notes", roles: ["nurse"] },
+    { key: "/tasks", icon: <CheckSquareOutlined />, label: "Tasks", roles: ["nurse"] },
+    { key: "/handover", icon: <SwapOutlined />, label: "Handover", roles: ["nurse"] },
+    { key: "/icumanagement", icon: <Server />, label: "ICU Management", roles: ["admin"] },
+    { key: "/bedmanagement", icon: <Bed />, label: "Bed Management", roles: ["admin"] },
+    { key: "/devicemanagement", icon: <Settings />, label: "Device Management", roles: ["admin"] },
+    { key: "/usermanagement", icon: <Users />, label: "User Management", roles: ["admin"] },
+     { key: "/settings", icon: <Settings />, label: "Settings", roles: ["admin"] },
   ];
+
+  const menuItems = navItems.filter((item) => userRole && item.roles.includes(userRole));
 
   function handleLogout() {
     logout();
@@ -195,8 +206,9 @@ const MainLayout: React.FC = () => {
   }
 
   const selectedKey =
-    menuItems.find((item) => location.pathname.startsWith(item.key))?.key ??
-    "/dashboard";
+    menuItems.find((item) =>
+      location.pathname === item.key || location.pathname.startsWith(`${item.key}/`)
+    )?.key ?? "/dashboard";
 
   const userDisplayName = user ? `${user.firstName} ${user.lastName}` : "User";
   const firstCritical = criticalAlarms[0];
@@ -249,7 +261,7 @@ const MainLayout: React.FC = () => {
                   style={{
                     color: "#1a1a2e",
                     fontWeight: 800,
-                    fontSize: 15,
+                    fontSize: 14,
                     letterSpacing: 0.5,
                     whiteSpace: "nowrap",
                   }}
@@ -295,10 +307,10 @@ const MainLayout: React.FC = () => {
             >
               ACTIVE UNIT
             </div>
-            <div style={{ color: "#1a1a2e", fontSize: 14, fontWeight: 700 }}>
+            <div style={{ color: "#1a1a2e", fontSize: 13, fontWeight: 700 }}>
               {user?.unitId ? `ICU Unit ${user.unitId}` : "Cardiac ICU"}
             </div>
-            <div style={{ color: "#9a9aae", fontSize: 11.5, marginTop: 2 }}>
+            <div style={{ color: "#9a9aae", fontSize: 11, marginTop: 2 }}>
               {currentShiftLabel()}
             </div>
           </div>
@@ -313,7 +325,7 @@ const MainLayout: React.FC = () => {
           inlineCollapsed={collapsed}
           items={menuItems}
           onClick={({ key }) => navigate(key)}
-          style={{ border: "none", marginTop: 8 }}
+          style={{ border: "none", marginTop: 8, fontSize: 13 }}
         />
 
         {/* Logout (red, bottom) */}

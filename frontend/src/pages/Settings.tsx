@@ -1,15 +1,6 @@
-import React from 'react';
-import { Typography } from 'antd';
+import React from "react";
+import SettingsPageFromAdmin from "./admin/Settings";
 
-const { Title, Paragraph } = Typography;
-
-const SettingsPage: React.FC = () => {
-  return (
-    <div>
-      <Title level={3}>Settings</Title>
-      <Paragraph>Here you can configure user preferences, manage roles and permissions, and customize alert rules in future versions.</Paragraph>
-    </div>
-  );
-};
+const SettingsPage: React.FC = () => <SettingsPageFromAdmin />;
 
 export default SettingsPage;
