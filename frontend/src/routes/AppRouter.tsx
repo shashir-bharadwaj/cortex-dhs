@@ -22,9 +22,13 @@ import MainLayout from "../layouts/MainLayout";
 import DashboardMain from "../pages/dashboard/MainDashboard";
 import IcuManagement from "../pages/icu/IcuManagement";
 import BedManagement from "../pages/bed/BedManagement";
-import DeviceManagement from "../pages/devices/Devicemanagement";
+import DeviceManagement from "../pages/devices/DeviceManagement";
 import UsersAndRolesPage from "../pages/admin/UserRoleManagement";
 import Settings from "../pages/Settings";
+import ConnectivityPage from "../pages/admin/connectivivty";
+import CloudSyncPage from "../pages/admin/cloudsync";
+import Reports from "../pages/admin/Reports";
+import AuditLogsPage from "../pages/admin/Auditlogs";
 
 const AppRouter: React.FC = () => {
   return (
@@ -62,6 +66,10 @@ const AppRouter: React.FC = () => {
         <Route path="devicemanagement" element={<DeviceManagement />} />
         <Route path="usermanagement" element={<UsersAndRolesPage />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="connectivity" element={<ConnectivityPage />} />
+        <Route path="cloudsync" element={<CloudSyncPage />} />
+        <Route path="audit" element={<AuditLogsPage />} />
+        <Route path="reports" element={<Reports />} />
       </Route>
 
       {/* Catch-all */}

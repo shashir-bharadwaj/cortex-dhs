@@ -7,8 +7,10 @@
 .cortex-sider-menu.ant-menu-light .ant-menu-item {
   color: #3f3f54;
   border-radius: 10px;
-  margin: 4px 10px;
-  width: calc(100% - 20px);
+  margin: 4px 8px;
+  width: calc(100% - 16px);
+  padding-left: 13px !important;
+  padding-right: 13px !important;
   height: 42px;
   line-height: 42px;
   font-weight: 500;

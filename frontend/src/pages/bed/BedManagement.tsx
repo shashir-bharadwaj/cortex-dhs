@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { addBed, getBeds, updateBed } from "../../Service/adminService";
-import CommonTable from "../shared/table";
+import CommonTable from "../shared/commontable";
 import DeleteConfirmPopup from "../icu/DeleteConfirmationPopup";
 
 
@@ -88,7 +88,12 @@ const BedManagement = () => {
     { title: "Cleaning Status", dataIndex: "cleaning_status", key: "cleaning_status" },
     { title: "Maintenance Status", dataIndex: "maintenance_status", key: "maintenance_status" },
     { title: "Operational Status", dataIndex: "operational_status", key: "operational_status" },
-    { title: "Last Sanitized", dataIndex: "last_sanitized", key: "last_sanitized" },
+    {
+      title: "Last Sanitized",
+      dataIndex: "last_sanitized",
+      key: "last_sanitized",
+      render: (value: string) => (value ? value.split("T")[0] : ""),
+    },
   ];
 
   const handleEdit = (row: BedData) => {

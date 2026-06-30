@@ -181,7 +181,11 @@ const MainLayout: React.FC = () => {
     { key: "/icumanagement", icon: <Server />, label: "ICU Management", roles: ["admin"] },
     { key: "/bedmanagement", icon: <Bed />, label: "Bed Management", roles: ["admin"] },
     { key: "/devicemanagement", icon: <Settings />, label: "Device Management", roles: ["admin"] },
+      { key: "/connectivity", icon: <Settings />, label: "Connectivity", roles: ["admin"] },
     { key: "/usermanagement", icon: <Users />, label: "User Management", roles: ["admin"] },
+     { key: "/cloudsync", icon: <Users />, label: "Cloud Sync", roles: ["admin"] },
+      { key: "/audit", icon: <Users />, label: "Audit", roles: ["admin"] },
+       { key: "/reports", icon: <Users />, label: "Reports", roles: ["admin"] },
      { key: "/settings", icon: <Settings />, label: "Settings", roles: ["admin"] },
   ];
 
@@ -249,7 +253,7 @@ const MainLayout: React.FC = () => {
             display: "flex",
             alignItems: "center",
             justifyContent: collapsed ? "center" : "space-between",
-            padding: collapsed ? "12px 0" : "14px 18px",
+            padding: collapsed ? "12px 0" : "14px 8px",
             minHeight: 56,
           }}
         >

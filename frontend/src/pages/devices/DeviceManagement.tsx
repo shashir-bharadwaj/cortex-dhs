@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
-import CommonTable from "../shared/table";
+import CommonTable from "../shared/commontable";
 import DeleteConfirmPopup from "../icu/DeleteConfirmationPopup";
 import { addDevice, getDevices, updateDevice } from "../../Service/adminService";
 

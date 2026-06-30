@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { Tag, Typography, Button, Tabs, Checkbox, Collapse, Modal, Row, Col } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import { Pencil, Trash2 } from "lucide-react";
-import CommonTable from "../shared/table";
+import CommonTable from "../shared/commontable";
 import DeleteConfirmPopup from "../icu/DeleteConfirmationPopup";
 import {
   addUser,
