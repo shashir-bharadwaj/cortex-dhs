@@ -19,9 +19,12 @@ from app.api.v1.endpoints import (
 )
 
 from app.api.v1.endpoints.admin import (
+    audit_logs,
+    cloud_sync,
     bed_management,
     device_management,
     icu_management,
+    reports,
     user_management,
 )
 
@@ -50,6 +53,9 @@ api_router.include_router(nurse_tasks.router)
 api_router.include_router(handover.router)
 
 # Admin modules
+api_router.include_router(audit_logs.router)
+api_router.include_router(cloud_sync.router)
+api_router.include_router(reports.router)
 api_router.include_router(icu_management.router)
 api_router.include_router(bed_management.router)
 api_router.include_router(device_management.router)

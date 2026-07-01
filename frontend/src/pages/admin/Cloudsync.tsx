@@ -1,12 +1,12 @@
-import React from "react";
-import { Card, Row, Col, Table, Tag, Typography } from "antd";
+import React, { useEffect, useState } from "react";
+import { Card, Row, Col, Table, Tag, Typography, Button } from "antd";
 import {
   ClockCircleOutlined,
   DatabaseOutlined,
   WarningOutlined,
   CloudOutlined,
 } from "@ant-design/icons";
-import { useCloudSync } from "../../context/cloudsyncContext";
+import { getCloudSyncStatus, CloudSyncResponse, HospitalSync, CloudSummary } from "../../api/adminApi";
 
 const { Title, Text } = Typography;
 
@@ -22,7 +22,24 @@ const getStatusTag = (status: string) => {
 /* ================= COMPONENT ================= */
 
 const CloudSyncPage = () => {
-  const { summary, hospitalData } = useCloudSync();
+  const [summary, setSummary] = useState<CloudSummary>({ lastSync: "-", dataSent: "-", errors: 0, hospitals: 0 });
+  const [hospitalData, setHospitalData] = useState<HospitalSync[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    getCloudSyncStatus()
+      .then((res: CloudSyncResponse) => {
+        if (!mounted) return;
+        setSummary(res.summary);
+        setHospitalData(res.hospitals);
+      })
+      .catch(() => {
+        // keep defaults on error
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const columns = [
     {
@@ -110,6 +127,11 @@ const CloudSyncPage = () => {
           </Card>
         </Col>
       </Row>
+      <div style={{ marginBottom: 12 }}>
+        <Button type="primary" onClick={() => { getCloudSyncStatus().then(res => { setSummary(res.summary); setHospitalData(res.hospitals); }).catch(()=>{}); }}>
+          Refresh
+        </Button>
+      </div>
 
       <Card>
         <Table

@@ -1,10 +1,20 @@
-import React from "react";
-import { Table, Tag, Typography } from "antd";
+import React, { useEffect, useState } from "react";
+import { message, Tag, Typography } from "antd";
 import { Pencil, Trash2 } from "lucide-react";
-import { useAuditLogs } from "../../context/auditlogContext";
+import { getAuditLogs } from "../../api/adminApi";
 import CommonTable from "../shared/commontable";
 
 
+
+type AuditLogRow = {
+  id: number;
+  time: string;
+  user: string;
+  role: string;
+  action: string;
+  module: string;
+  ip: string;
+};
 
 const { Title, Text } = Typography;
 
@@ -24,7 +34,26 @@ const getRoleTag = (role: string) => {
 /* ================= COMPONENT ================= */
 
 const AuditLogsPage = () => {
-  const logs = useAuditLogs();
+  const [logs, setLogs] = useState<AuditLogRow[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const loadLogs = async () => {
+      setLoading(true);
+
+      try {
+        const response = await getAuditLogs();
+        setLogs(response);
+      } catch (error) {
+        console.error("Failed to load audit logs:", error);
+        message.error("Failed to load audit logs");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadLogs();
+  }, []);
 
   const columns = [
     {
