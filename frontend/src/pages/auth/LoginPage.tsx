@@ -129,7 +129,7 @@ export default function LoginPage() {
             </Form.Item>
 
             {/* Forgot Password */}
-            <div style={{ textAlign: "right", marginBottom: 20 }}>
+            {/* <div style={{ textAlign: "right", marginBottom: 20 }}>
               <a
                 href="#"
                 style={{ fontSize: 13, color: "#5b2be0", textDecoration: "none" }}
@@ -137,7 +137,7 @@ export default function LoginPage() {
               >
                 Forgot Password?
               </a>
-            </div>
+            </div> */}
 
             <Form.Item style={{ marginBottom: 16 }}>
               <Button
@@ -161,7 +161,7 @@ export default function LoginPage() {
           </Form>
 
           {/* Sign up footer */}
-          <div style={{ textAlign: "center", marginTop: 4 }}>
+          {/* <div style={{ textAlign: "center", marginTop: 4 }}>
             <Text style={{ fontSize: 13, color: "#888" }}>
               Don't have an account?{" "}
               <a
@@ -172,7 +172,7 @@ export default function LoginPage() {
                 Sign Up
               </a>
             </Text>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>

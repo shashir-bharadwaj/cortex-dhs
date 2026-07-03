@@ -25,8 +25,8 @@ import BedManagement from "../pages/bed/BedManagement";
 import DeviceManagement from "../pages/devices/DeviceManagement";
 import UsersAndRolesPage from "../pages/admin/UserRoleManagement";
 import Settings from "../pages/Settings";
-import ConnectivityPage from "../pages/admin/connectivivty";
-import CloudSyncPage from "../pages/admin/cloudsync";
+import ConnectivityPage from "../pages/admin/Connectivity";
+import CloudSyncPage from "../pages/admin/Cloudsync";
 import Reports from "../pages/admin/Reports";
 import AuditLogsPage from "../pages/admin/Auditlogs";
 

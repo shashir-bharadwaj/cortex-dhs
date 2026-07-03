@@ -26,6 +26,8 @@ from app.api.v1.endpoints.admin import (
     icu_management,
     reports,
     user_management,
+    connectivity,
+    settings
 )
 
 api_router = APIRouter()
@@ -37,6 +39,8 @@ api_router.include_router(vitals.router)
 api_router.include_router(timeline.router)
 api_router.include_router(hospitals.router)
 api_router.include_router(alarms.router)
+api_router.include_router(connectivity.router)
+api_router.include_router(settings.router)
 api_router.include_router(dashboard.router)
 api_router.include_router(ingestion.router)
 api_router.include_router(clinical_notes.router)

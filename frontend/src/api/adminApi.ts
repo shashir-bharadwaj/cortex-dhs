@@ -48,6 +48,65 @@ export async function triggerCloudSync(): Promise<{ started: boolean; message: s
 }
 
 // ----------------------
+// Connectivity
+// ----------------------
+
+export interface ConnectivitySummary {
+  online: number;
+  offline: number;
+  dataRate: string;
+  latency: string;
+}
+
+export interface ConnectivityTimeline {
+  time: string;
+  online: number;
+  offline: number;
+}
+
+export interface ConnectivityDevice {
+  id: string;
+  type: string;
+  bed: string;
+  status: string;
+  lastSync: string;
+  ip: string;
+}
+
+export interface ConnectivityResponse {
+  summary: ConnectivitySummary;
+  timeline: ConnectivityTimeline[];
+  devices: ConnectivityDevice[];
+}
+
+export async function getConnectivityStatus(): Promise<ConnectivityResponse> {
+  const response = await api.get("/admin/connectivity");
+  return response.data;
+}
+
+// ----------------------
+// Settings
+// ----------------------
+
+export interface SettingsPayload {
+  hospitalName: string;
+  adminEmail: string;
+  settings: Record<string, boolean>;
+}
+
+export interface SettingsResponse extends SettingsPayload {}
+
+export async function getSettings(): Promise<SettingsResponse> {
+  const response = await api.get("/admin/settings");
+  return response.data;
+}
+
+export async function saveSettings(payload: SettingsPayload): Promise<SettingsResponse> {
+  const response = await api.post("/admin/settings", payload);
+  return response.data;
+}
+
+// ----------------------
 // Reports
 // ----------------------
 

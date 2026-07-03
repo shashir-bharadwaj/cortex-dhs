@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Card, Typography, Input, Switch, Divider, Button, message } from "antd";
 import { SaveOutlined } from "@ant-design/icons";
+import { getSettings, saveSettings } from "../../api/adminApi";
 
 const { Title, Text } = Typography;
 
@@ -14,6 +15,24 @@ const SystemSettingsPage = () => {
     autoDiscovery: false,
   });
 
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const response = await getSettings();
+        setHospitalName(response.hospitalName || hospitalName);
+        setAdminEmail(response.adminEmail || adminEmail);
+        setSettings((prev) => ({
+          ...prev,
+          ...response.settings,
+        }));
+      } catch (error) {
+        console.error("Failed to load settings", error);
+      }
+    };
+
+    loadSettings();
+  }, []);
+
   const handleToggle = (key: string, value: boolean) => {
     setSettings((prev) => ({
       ...prev,
@@ -21,9 +40,18 @@ const SystemSettingsPage = () => {
     }));
   };
 
-  const handleSave = () => {
-    console.log({ hospitalName, adminEmail, settings });
-    message.success("Settings saved successfully!");
+  const handleSave = async () => {
+    try {
+      await saveSettings({
+        hospitalName,
+        adminEmail,
+        settings,
+      });
+      message.success("Settings saved successfully!");
+    } catch (error) {
+      console.error("Failed to save settings", error);
+      message.error("Failed to save settings");
+    }
   };
 
   const styles = {
