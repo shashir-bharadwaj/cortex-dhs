@@ -58,7 +58,7 @@ const AuditLogsPage = () => {
   const columns = [
     {
       title: "Timestamp",
-      dataIndex: "time",
+      dataIndex: "timestamp",
     },
     {
       title: "User",
@@ -80,7 +80,7 @@ const AuditLogsPage = () => {
     },
     {
       title: "IP Address",
-      dataIndex: "ip",
+      dataIndex: "ip_address",
     },
   ];
 

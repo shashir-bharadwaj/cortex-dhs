@@ -8,7 +8,7 @@ import type { Role, RolePayload } from "../types/role";
 // ----------------------
 
 export async function getAuditLogs(): Promise<AuditLog[]> {
-  const response = await api.get("/admin/audit-logs");
+  const response = await api.get("/admin/audits");
   return response.data;
 }
 
@@ -103,6 +103,52 @@ export async function getSettings(): Promise<SettingsResponse> {
 
 export async function saveSettings(payload: SettingsPayload): Promise<SettingsResponse> {
   const response = await api.post("/admin/settings", payload);
+  return response.data;
+}
+
+// ----------------------
+// Admin Dashboard
+// ----------------------
+
+export interface AdminDashboardStats {
+  hospitals: number;
+  icuUnits: number;
+  beds: number;
+  connected: number;
+  offline: number;
+  patients: number;
+  critical: number;
+}
+
+export interface AdminDashboardTrend {
+  time: string;
+  online: number;
+  offline: number;
+}
+
+export interface AdminDashboardAlertData {
+  time: string;
+  critical: number;
+  warning: number;
+  info: number;
+}
+
+export interface AdminDashboardLiveAlert {
+  bed: string;
+  type: string;
+  message: string;
+  time: string;
+}
+
+export interface AdminDashboardOverviewResponse {
+  stats: AdminDashboardStats;
+  connectivityTrend: AdminDashboardTrend[];
+  alertsData: AdminDashboardAlertData[];
+  liveAlerts: AdminDashboardLiveAlert[];
+}
+
+export async function getAdminDashboardOverview(): Promise<AdminDashboardOverviewResponse> {
+  const response = await api.get("/admin/dashboard/overview");
   return response.data;
 }
 

@@ -8,6 +8,7 @@ from app.db.database import Base
 
 # Import all models here so Alembic can detect them
 from app.infrastructure.database.models.user import UserModel
+from app.infrastructure.database.models.audit import AuditLogModel
 # Add future models here:
 # from app.infrastructure.database.models.hospital import HospitalModel
 # from app.infrastructure.database.models.patient import PatientModel

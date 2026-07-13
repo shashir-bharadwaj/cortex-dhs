@@ -1,81 +1,109 @@
+from typing import List
+
 from fastapi import APIRouter, Depends, status
 
+from app.api.providers.admin.audit import AuditProvider
 from app.api.providers.auth import AuthProvider
-from app.api.schemas.audit_log import AuditLogResponse
+from app.api.schemas.audit_log import (
+    AuditLogCreateRequest,
+    AuditLogResponse,
+    AuditLogUpdateRequest,
+)
+from app.application.audit.use_cases.create_audit import CreateAuditUseCase
+from app.application.audit.use_cases.delete_audit import DeleteAuditUseCase
+from app.application.audit.use_cases.list_audit import ListAuditsUseCase
+from app.application.audit.use_cases.read_audit import ReadAuditUseCase
+from app.application.audit.use_cases.update_audit import UpdateAuditUseCase
 from app.core.errors.docs import STANDARD_ERROR_RESPONSES
 from app.domain.enums.permission import PermissionAction, PermissionModule
 
 router = APIRouter(
-    prefix="/admin/audit-logs",
-    tags=["Admin - Audit Logs"],
+    prefix="/admin/audits",
+    tags=["Admin - Audit Management"],
 )
 
 
 def audit_permission(action: PermissionAction):
     return Depends(
         AuthProvider.permission_dependency(
-            PermissionModule.DEVICE_MANAGEMENT,
+            PermissionModule.BED_MANAGEMENT,
             action,
         )
     )
 
 
-@router.get(
+@router.post(
     "",
-    response_model=list[AuditLogResponse],
-    status_code=status.HTTP_200_OK,
+    response_model=AuditLogResponse,
+    status_code=status.HTTP_201_CREATED,
     responses=STANDARD_ERROR_RESPONSES,
 )
-def list_audit_logs(
-    _current_user=audit_permission(PermissionAction.VIEW),
+def create_audit(
+    payload: AuditLogCreateRequest,
+    _current_user=audit_permission(PermissionAction.CREATE),
+    use_case: CreateAuditUseCase = Depends(
+        AuditProvider.create_audit_use_case
+    ),
 ):
-    """
-    Return mock audit log entries for the admin console.
-    """
-    return [
-        AuditLogResponse(
-            id=1,
-            time="2026-06-30 10:42:00",
-            user="Dr. Sarah Chen",
-            role="Admin",
-            action="Acknowledged critical alert ALT-001",
-            module="Alerts",
-            ip="192.168.0.15",
-        ),
-        AuditLogResponse(
-            id=2,
-            time="2026-06-30 10:38:00",
-            user="Tom Baker",
-            role="Technician",
-            action="Ran diagnostics on Ventilator DEV-007",
-            module="Device Management",
-            ip="192.168.0.22",
-        ),
-        AuditLogResponse(
-            id=3,
-            time="2026-06-30 10:20:00",
-            user="Dr. Sarah Chen",
-            role="Admin",
-            action="Registered new ventilator DEV-011",
-            module="Device Management",
-            ip="192.168.0.15",
-        ),
-        AuditLogResponse(
-            id=4,
-            time="2026-06-30 10:05:00",
-            user="Kevin Lee",
-            role="Hospital IT",
-            action="Updated network gateway GW-02",
-            module="ICU Management",
-            ip="192.168.0.30",
-        ),
-        AuditLogResponse(
-            id=5,
-            time="2026-06-30 09:50:00",
-            user="Dr. Sarah Chen",
-            role="Admin",
-            action="Created user account for Dr. Patel",
-            module="User Management",
-            ip="192.168.0.15",
-        ),
-    ]
+    return use_case.execute(payload)
+
+
+@router.get(
+    "",
+    response_model=List[AuditLogResponse],
+    responses=STANDARD_ERROR_RESPONSES,
+)
+def list_audits(
+    _current_user=audit_permission(PermissionAction.VIEW),
+    use_case: ListAuditsUseCase = Depends(
+        AuditProvider.list_audits_use_case
+    ),
+):
+    return use_case.execute()
+
+
+@router.get(
+    "/{audit_id}",
+    response_model=AuditLogResponse,
+    responses=STANDARD_ERROR_RESPONSES,
+)
+def read_audit(
+    audit_id: int,
+    _current_user=audit_permission(PermissionAction.VIEW),
+    use_case: ReadAuditUseCase = Depends(
+        AuditProvider.read_audit_use_case
+    ),
+):
+    return use_case.execute(audit_id)
+
+
+@router.put(
+    "/{audit_id}",
+    response_model=AuditLogResponse,
+    responses=STANDARD_ERROR_RESPONSES,
+)
+def update_audit(
+    audit_id: int,
+    payload: AuditLogUpdateRequest,
+    _current_user=audit_permission(PermissionAction.MODIFY),
+    use_case: UpdateAuditUseCase = Depends(
+        AuditProvider.update_audit_use_case
+    ),
+):
+    return use_case.execute(audit_id, payload)
+
+
+@router.delete(
+    "/{audit_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=STANDARD_ERROR_RESPONSES,
+)
+def delete_audit(
+    audit_id: int,
+    _current_user=audit_permission(PermissionAction.DELETE),
+    use_case: DeleteAuditUseCase = Depends(
+        AuditProvider.delete_audit_use_case
+    ),
+):
+    use_case.execute(audit_id)
+    return None

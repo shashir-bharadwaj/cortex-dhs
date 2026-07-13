@@ -1,12 +1,14 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, status
+from sqlalchemy.orm import Session
 
 from app.api.providers.auth import AuthProvider
-from app.api.schemas.cloud_sync import (
-    CloudSyncResponse,
-    CloudSyncTriggerResponse,
-)
+from app.api.schemas.cloud_sync import CloudSyncResponse
 from app.core.errors.docs import STANDARD_ERROR_RESPONSES
+from app.db.database import get_db
 from app.domain.enums.permission import PermissionAction, PermissionModule
+from app.infrastructure.database.models.hospital import HospitalModel
 
 router = APIRouter(prefix="/admin/cloudsync", tags=["Admin - Cloud Sync"])
 
@@ -26,54 +28,42 @@ def cloudsync_permission(action: PermissionAction):
     status_code=status.HTTP_200_OK,
     responses=STANDARD_ERROR_RESPONSES,
 )
-def get_cloudsync_status(_current_user=cloudsync_permission(PermissionAction.VIEW)):
+def get_cloudsync_status(
+    _current_user=cloudsync_permission(PermissionAction.VIEW),
+    db: Session = Depends(get_db),
+):
     """
-    Return mock cloud sync status.
+    Return cloud sync status from database.
     """
+
+    hospitals = db.query(HospitalModel).all()
+
+    hospital_payload = []
+
+    connected = 0
+
+    for hospital in hospitals:
+
+       
+
+
+        hospital_payload.append(
+            {
+                "id": hospital.id,
+                "name": hospital.name,
+                "city": hospital.city,
+                "status": "",
+                "lastSync": "Just now",
+                "data": "N/A",
+            }
+        )
+
     return {
         "summary": {
-            "lastSync": "2 min ago",
-            "dataSent": "2.74 GB",
-            "errors": 1,
-            "hospitals": 3,
+            "lastSync": datetime.utcnow().strftime("%I:%M %p"),
+            "dataSent": "N/A",
+            "errors": 0,
+            "hospitals": connected,
         },
-        "hospitals": [
-            {
-                "id": 1,
-                "name": "Metro General Hospital",
-                "city": "New York",
-                "status": "Connected",
-                "lastSync": "2 min ago",
-                "data": "1.2 GB",
-            },
-            {
-                "id": 2,
-                "name": "St. Mary's Medical Center",
-                "city": "Chicago",
-                "status": "Connected",
-                "lastSync": "5 min ago",
-                "data": "890 MB",
-            },
-            {
-                "id": 3,
-                "name": "Pacific Health Institute",
-                "city": "San Francisco",
-                "status": "Delayed",
-                "lastSync": "25 min ago",
-                "data": "650 MB",
-            },
-        ],
+        "hospitals": hospital_payload,
     }
-
-
-@router.post(
-    "/trigger",
-    response_model=CloudSyncTriggerResponse,
-    status_code=status.HTTP_202_ACCEPTED,
-    responses=STANDARD_ERROR_RESPONSES,
-)
-def trigger_cloudsync(_current_user=cloudsync_permission(PermissionAction.CREATE)):
-    """
-    Trigger a cloud sync operation (mock implementation).
-    """
-    return CloudSyncTriggerResponse(started=True, message="Cloud sync started (mock)")

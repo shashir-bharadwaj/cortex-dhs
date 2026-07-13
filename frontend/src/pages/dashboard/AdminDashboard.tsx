@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   LineChart,
   Line,
@@ -18,11 +18,57 @@ import {
   AlertTriangle,
   Plus,
 } from "lucide-react";
-import { useDashboard } from "../../context/DashboardContext";
+import { getAdminDashboardOverview, type AdminDashboardOverviewResponse } from "../../api/adminApi";
 
 const DashboardPageAdmin = () => {
-  const { stats, connectivityTrend, alertsData, liveAlerts } =
-    useDashboard();
+  const [dashboardData, setDashboardData] = useState<AdminDashboardOverviewResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadDashboard = async () => {
+      try {
+        const data = await getAdminDashboardOverview();
+        if (isMounted) {
+          setDashboardData(data);
+        }
+      } catch (error) {
+        console.error("Failed to load admin dashboard overview", error);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadDashboard();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const stats = dashboardData?.stats ?? {
+    hospitals: 0,
+    icuUnits: 0,
+    beds: 0,
+    connected: 0,
+    offline: 0,
+    patients: 0,
+    critical: 0,
+  };
+  const connectivityTrend = dashboardData?.connectivityTrend ?? [];
+  const alertsData = dashboardData?.alertsData ?? [];
+  const liveAlerts = dashboardData?.liveAlerts ?? [];
+
+  if (loading) {
+    return (
+      <div style={{ padding: 16 }}>
+        <p style={{ color: "#6b7280" }}>Loading dashboard overview...</p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16 }}> {/* tailwind: p-4 space-y-4 */}
@@ -144,18 +190,18 @@ const DashboardPageAdmin = () => {
       </div>
 
 
-      <Card>
+      {/* <Card>
 
         <h3 style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Quick Actions</h3>
 
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}> {/* tailwind: flex gap-3 flex-wrap */}
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           <ActionBtn label="Add ICU" primary />
           <ActionBtn label="Add Bed" />
           <ActionBtn label="Register Device" />
           <ActionBtn label="Create User" />
         </div>
 
-      </Card>
+      </Card> */}
 
     </div>
   );

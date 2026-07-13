@@ -4,7 +4,7 @@ from app.api.v1.endpoints import (
     alarms,
     auth,
     clinical_notes,
-    dashboard,
+    dashboard as core_dashboard,
     fluid_balance,
     handover,
     hospitals,
@@ -20,14 +20,15 @@ from app.api.v1.endpoints import (
 
 from app.api.v1.endpoints.admin import (
     audit_logs,
-    cloud_sync,
     bed_management,
+    cloud_sync,
+    connectivity,
+    dashboard as admin_dashboard,
     device_management,
     icu_management,
     reports,
+    settings,
     user_management,
-    connectivity,
-    settings
 )
 
 api_router = APIRouter()
@@ -41,7 +42,7 @@ api_router.include_router(hospitals.router)
 api_router.include_router(alarms.router)
 api_router.include_router(connectivity.router)
 api_router.include_router(settings.router)
-api_router.include_router(dashboard.router)
+api_router.include_router(core_dashboard.router)
 api_router.include_router(ingestion.router)
 api_router.include_router(clinical_notes.router)
 
@@ -59,7 +60,9 @@ api_router.include_router(handover.router)
 # Admin modules
 api_router.include_router(audit_logs.router)
 api_router.include_router(cloud_sync.router)
+api_router.include_router(cloud_sync.router)
 api_router.include_router(reports.router)
+api_router.include_router(admin_dashboard.router)
 api_router.include_router(icu_management.router)
 api_router.include_router(bed_management.router)
 api_router.include_router(device_management.router)

@@ -18,8 +18,8 @@ import {
 } from "../../api/adminApi";
 
 const getStatusTag = (status: string) => {
-  if (status === "Online") return <Tag color="green">● Online</Tag>;
-  if (status === "Offline") return <Tag>● Offline</Tag>;
+  if (status === "ONLINE") return <Tag color="green">● Online</Tag>;
+  if (status === "OFFLINE") return <Tag>● Offline</Tag>;
   return <Tag color="red">● Error</Tag>;
 };
 
