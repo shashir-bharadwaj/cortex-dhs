@@ -292,3 +292,45 @@ Use `db` as the host (Docker network), not `localhost`.
 - Perform **HIPAA** risk assessment, pen-testing, and de-identification.
 
 See [architecture.md](architecture.md) for design details.
+
+---
+
+## 13. Self-contained Docker stack (Docker Desktop)
+
+`docker-compose.prod.yml` runs the app **without source bind mounts**: the code is baked
+into the images, the frontend is a static Vite build served by nginx, and nginx proxies
+`/api` (REST + WebSocket) to the backend, so the browser talks to a single origin.
+
+| Service           | Image                         | Host port | Notes                                     |
+| ----------------- | ----------------------------- | --------- | ----------------------------------------- |
+| `frontend`        | `cortex-dhs-prod-frontend:latest`| **8080**  | nginx: UI + `/api` reverse proxy          |
+| `backend`         | `cortex-dhs-prod-backend:latest`| 8000 (local only) | migrates, seeds (first run), runs uvicorn |
+| `db`              | `postgres:15`                 | –         | data in volume `cortex-dhs-prod_cortex_pgdata` |
+| `vital_simulator` | `cortex-dhs-prod-backend:latest`| –         | profile `simulator`                       |
+
+```bash
+# Build + start (with live vitals)
+docker compose -f docker-compose.prod.yml --profile simulator up -d --build
+# or: make prod-up
+
+# Stop (data is kept)            -> make prod-down
+# Stop AND wipe the database     -> docker compose -f docker-compose.prod.yml --profile simulator down -v
+```
+
+Open **http://localhost:8080** (or `http://<vm-ip>:8080` from other machines) and log in
+with the users from section 4. Swagger is at http://localhost:8000/docs. Port 8000 is bound
+to `127.0.0.1`, so it can only be opened from the host machine (set `BACKEND_BIND=0.0.0.0` in
+`.env` to expose it on the network).
+
+After the first run, the stack appears in **Docker Desktop → Containers** as
+`cortex-dhs-prod`. You can start, stop, restart and read logs from there without the terminal.
+Rebuild (`up -d --build`) after code changes.
+
+**Seeding** is controlled by `SEED_MODE`: `if-empty` (default, seed only on first start),
+`always` (reseed on every start, **wipes data**), `never`.
+
+**Configuration:** copy `.env.docker.example` to `.env` in the repo root to override the
+secret key, DB credentials, seed mode or ports. All values have working defaults.
+
+> The dev stack (`docker-compose.yml`) and this stack both use host port 8000, so stop one
+> before starting the other.

@@ -1,34 +1,34 @@
-# FROM python:3.11-slim
-
-# ENV PYTHONDONTWRITEBYTECODE=1
-# ENV PYTHONUNBUFFERED=1
-
-# WORKDIR /usr/src/app
-
-# # Install system dependencies
-# RUN apt-get update && apt-get install -y build-essential gcc libpq-dev && rm -rf /var/lib/apt/lists/*
-
-# COPY requirements.txt .
-# RUN pip install --no-cache-dir -r requirements.txt
-
-# COPY ./app ./app
-
-# EXPOSE 8000
-# CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-
-
-
 FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
 WORKDIR /app
 
-# Install netcat so docker-compose can wait for Postgres
-RUN apt-get update && apt-get install -y netcat-openbsd && rm -rf /var/lib/apt/lists/*
+# No apt packages needed: psycopg2-binary ships its own libpq, and the
+# healthcheck below uses Python instead of curl.
 
+# Install dependencies first so this layer is cached across code changes.
 COPY requirements.txt .
-
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install -r requirements.txt
 
 COPY . .
 
+# Normalise line endings (files may be checked out with CRLF on Windows) and
+# run as a non-root user.
+RUN sed -i 's/\r$//' docker-entrypoint.sh \
+    && chmod +x docker-entrypoint.sh \
+    && useradd --create-home --uid 1000 appuser \
+    && chown -R appuser:appuser /app
+USER appuser
+
 EXPOSE 8000
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=40s --retries=5 \
+    CMD python -c "import urllib.request,sys; urllib.request.urlopen('http://localhost:8000/docs', timeout=4)" || exit 1
+
+# docker-compose.yml (dev) overrides this command; the prod compose file uses it.
+CMD ["./docker-entrypoint.sh"]

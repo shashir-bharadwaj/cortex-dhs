@@ -6,7 +6,21 @@ COMPOSE_SIM   := docker compose --profile simulator
 BACKEND       := backend
 
 .DEFAULT_GOAL := help
-.PHONY: help up down reseed seed logs ps restart-backend sim-stop sim-start
+.PHONY: help up down reseed seed logs ps restart-backend sim-stop sim-start prod-build prod-up prod-down prod-logs
+
+COMPOSE_PROD  := docker compose -f docker-compose.prod.yml --profile simulator
+
+prod-build: ## [prod] Build the self-contained backend/frontend images
+	$(COMPOSE_PROD) build
+
+prod-up: ## [prod] Build + start the self-contained stack (UI on http://localhost:8080)
+	$(COMPOSE_PROD) up -d --build
+
+prod-down: ## [prod] Stop the self-contained stack (DB volume is kept)
+	$(COMPOSE_PROD) down --remove-orphans
+
+prod-logs: ## [prod] Tail backend + frontend logs of the self-contained stack
+	$(COMPOSE_PROD) logs -f backend frontend
 
 help: ## List available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \

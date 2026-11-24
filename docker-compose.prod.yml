@@ -1,0 +1,86 @@
+# Self-contained stack: code is baked into the images (no source bind mounts),
+# so it runs from Docker Desktop without the repo's dev tooling.
+#
+#   docker compose -f docker-compose.prod.yml up -d --build                       # app
+#   docker compose -f docker-compose.prod.yml --profile simulator up -d --build   # app + live vitals
+#
+# Open http://localhost:8080  (API docs: http://localhost:8000/docs)
+#
+# Override any ${VAR} below by putting it in a `.env` file next to this one
+# (see .env.docker.example).
+
+name: cortex-dhs-prod
+
+x-backend-env: &backend-env
+  DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-cortex_icu}
+  SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+  ALGORITHM: HS256
+  ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
+
+services:
+  db:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-cortex_icu}
+    volumes:
+      - cortex_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-cortex_icu}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    image: cortex-dhs-prod-backend:latest
+    restart: unless-stopped
+    environment:
+      <<: *backend-env
+      SEED_MODE: ${SEED_MODE:-if-empty}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      # Direct API / Swagger access, bound to the VM itself only. The UI reaches the
+      # backend through nginx on the internal network, so this isn't needed by users.
+      # Set BACKEND_BIND=0.0.0.0 to expose it on the network again.
+      - "${BACKEND_BIND:-127.0.0.1}:${BACKEND_PORT:-8000}:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    image: cortex-dhs-prod-frontend:latest
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+
+  vital_simulator:
+    build:
+      context: ./backend               # same image as backend (layers are cached)
+    image: cortex-dhs-prod-backend:latest
+    restart: unless-stopped
+    healthcheck:
+      disable: true                    # no HTTP server in this container
+    environment:
+      <<: *backend-env
+    depends_on:
+      backend:
+        condition: service_healthy
+    command: >
+      python scripts/simulate_live_vitals.py
+      --api-base-url http://backend:8000
+      --beds B1 B2 B3 B4 B5 B6 B7 B8 B9 B10 S1 S2 S3 S4 S5 S6 S7 S8 N1 N2 N3 N4 N5 N6 N7 N8
+      --interval 5
+    profiles:
+      - simulator
+
+volumes:
+  cortex_pgdata:

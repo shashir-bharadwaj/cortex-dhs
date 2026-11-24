@@ -1,0 +1,22 @@
+# Production image: build static assets with Vite, serve them with nginx.
+# nginx also reverse-proxies /api (REST + WebSocket) to the backend container,
+# so the browser only ever talks to one origin (no CORS, no hard-coded host).
+
+# ---- Build stage ----
+FROM node:20-alpine AS build
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+COPY . .
+# Relative base URL -> requests go to the same host that served the UI.
+ARG VITE_API_BASE_URL=/api/v1
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+RUN npm run build
+
+# ---- Runtime stage ----
+FROM nginx:1.27-alpine
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/dist /usr/share/nginx/html
+EXPOSE 80

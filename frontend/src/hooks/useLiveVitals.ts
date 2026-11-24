@@ -35,7 +35,10 @@ export interface LiveAlarmMessage {
 function buildWsUrl(unitId: number): string {
   const base =
     import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
-  const wsBase = base.replace(/^http/i, "ws");
+  // Resolve relative bases (e.g. "/api/v1" in the Docker build) against the
+  // page origin, then swap http(s) -> ws(s).
+  const absolute = new URL(base, window.location.origin).toString().replace(/\/$/, "");
+  const wsBase = absolute.replace(/^http/i, "ws");
   return `${wsBase}/ws/live-vitals/${unitId}`;
 }
 
