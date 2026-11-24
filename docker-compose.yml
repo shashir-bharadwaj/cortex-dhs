@@ -20,8 +20,12 @@ services:
         echo 'DB is healthy!' &&
         alembic upgrade head &&
         python scripts/seed_dev_data.py &&
-        uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir app
       "
+    # The image's healthcheck allows 40s to start; the bind-mounted dev server
+    # can be slower on Windows, so give it more grace before marking unhealthy.
+    healthcheck:
+      start_period: 180s
 
   frontend:
     build:
@@ -70,6 +74,8 @@ services:
     volumes:
       - ./backend:/app
     command: python scripts/seed_dev_data.py
+    healthcheck:
+      disable: true   # one-off script, no HTTP server
     profiles:
       - seed
 
@@ -84,6 +90,8 @@ services:
       - backend
     volumes:
       - ./backend:/app
+    healthcheck:
+      disable: true   # no HTTP server in this container
     command: >
       sh -c "
         sleep 10 &&
